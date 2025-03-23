@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChefScript</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Header Image" class="header-image">
+        <h1>ChefScript</h1>
+    </header>
+    <main class="three-column-layout">
+        <div class="column input-area">
+            <form method="POST">
+                <div class="textarea-wrapper">
+                    <div class="line-numbers" id="lineNumbers"></div>
+                    <textarea name="code" placeholder="Enter your code here..." oninput="updateLineNumbers()" onscroll="syncScroll()">{{ code }}</textarea>
+                </div>
+                <div class="button-container">
+                    <button type="submit" name="action" value="Lexical">Lexical Analyzer</button>
+                    <button type="submit" name="action" value="Syntax">Syntax Analyzer</button>
+                    <button type="submit" name="action" value="Semantic">Semantic Analyzer</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="column error-sections">
+            <div class="error-block">
+                <h2>Lexical Errors</h2>
+                {% if error_tokens_text %}
+                    <p class="error-message">{{ error_tokens_text }}</p>
+                {% else %}
+                    <p class="success-message">No Lexical Analysis Errors!</p>
+                {% endif %}
+            </div>
+            <div class="error-block">
+                <h2>Syntax Errors</h2>
+                {% if error_syntax_text %}
+                    <p class="error-message">{{ error_syntax_text }}</p>
+                {% else %}
+                    <p class="success-message">No Syntax Analysis Errors!</p>
+                {% endif %}
+            </div>
+            <div class="error-block">
+                <h2>Semantic Errors</h2>
+                {% if error_semantic_text %}
+                    <p class="error-message">{{ error_semantic_text }}</p>
+                {% else %}
+                    <p class="success-message">No Semantic Analysis Errors!</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="column result-table">
+            <h2>Lexical and Token Table</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Lexeme</th>
+                            <th>Token</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if result and result|length > 0 %}
+                            {% for lexeme, token in result %}
+                                <tr>
+                                    <td>{{ lexeme }}</td>
+                                    <td>{{ token }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="2" class="no-results">No results yet</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>        
+    </main>
+
+    <script>
+        function updateLineNumbers() {
+            const textarea = document.querySelector('textarea[name="code"]');
+            const lineNumbers = document.getElementById('lineNumbers');
+            const lines = textarea.value.split('\n').length;
+            lineNumbers.innerHTML = Array(lines).fill().map((_, i) => i + 1).join('<br>');
+        }
+        
+        function syncScroll() {
+            const textarea = document.querySelector('textarea[name="code"]');
+            const lineNumbers = document.getElementById('lineNumbers');
+            lineNumbers.scrollTop = textarea.scrollTop;
+        }
+        
+        document.addEventListener("DOMContentLoaded", function () {
+            updateLineNumbers();
+            
+            const textarea = document.querySelector('textarea[name="code"]');
+            
+            // Tab key handler
+            textarea.addEventListener("keydown", function (event) {
+                if (event.key === "Tab") {
+                    event.preventDefault();
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const spaces = "    ";
+                    textarea.value = textarea.value.substring(0, start) + spaces + textarea.value.substring(end);
+                    textarea.selectionStart = textarea.selectionEnd = start + spaces.length;
+                }
+                
+                // Auto-closing for parentheses and braces
+                if (event.key === "(" || event.key === "{") {
+                    event.preventDefault();
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    
+                    // Get the closing character
+                    const closingChar = event.key === "(" ? ")" : "}";
+                    
+                    // Insert opening char, selected text, and closing char
+                    const selectedText = textarea.value.substring(start, end);
+                    textarea.value = textarea.value.substring(0, start) + 
+                                    event.key + selectedText + closingChar + 
+                                    textarea.value.substring(end);
+                    
+                    // Position cursor appropriately
+                    if (start === end) {
+                        // If no text is selected, place cursor between brackets
+                        textarea.selectionStart = textarea.selectionEnd = start + 1;
+                    } else {
+                        // If text is selected, place cursor after the closing bracket
+                        textarea.selectionStart = textarea.selectionEnd = end + 2;
+                    }
+                    
+                    // Update line numbers after inserting
+                    updateLineNumbers();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
