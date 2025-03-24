@@ -148,7 +148,7 @@ cfg = {
                    ["--"]],
     
     "<conditional_statement>": [["taste", "(", "<condition>", ")", "{", "<statement_block>", "}", "<conditional_tail>"],
-                                ["flip", "(", "<id>", ")", "{", "case", "<literals4>", ":", "<statement_block>", "chop", ";", "<case_tail>", "<default_block>", "}"]],
+                                ["flip", "(", "id", ")", "{", "case", "<literals4>", ":", "<statement_block>", "chop", ";", "<case_tail>", "<default_block>", "}"]],
     
     "<conditional_tail>": [["elif", "(", "<condition>", ")", "{", "<statement_block>", "}", "<conditional_tail>"],
                             ["mix", "{", "<statement_block>", "}"],
