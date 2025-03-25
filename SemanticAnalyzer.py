@@ -177,6 +177,10 @@ class SemanticAnalyzer:
                     return "pinch"
                 elif left_type == "pasta" and right_type == "pasta" and operator == "+":
                     return "pasta"
+                
+        # For <literals> nodes
+        if hasattr(expr_node, "value") and expr_node.value == "<literals>":
+            return self.get_expression_type(expr_node.children[0])
         
         # Handle literals directly
         if hasattr(expr_node, 'value'):

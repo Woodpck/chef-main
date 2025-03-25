@@ -49,7 +49,7 @@ cfg = {
     "<elementtail>": [[",", "<literals>", "<elementtail>"],
                 ["λ"]],
     
-	"<function>": [["full", "<data_type>", "id", "(", "<parameters>", ")", "{", "<local_dec>", "<statement_block>", "spit", "<expression>", ";", "}", "<function>"],
+	"<function>": [["full", "<data_type>", "id", "(", "<parameters>", ")", "{", "<local_dec>", "<statement_block>", "<return_statement>", ";", "}", "<function>"],
 						["hungry", "id", "(", "<parameters>", ")", "{", "<local_dec>", "<statement_block>", "}", "<function>"],
                         ["λ"]],
  
@@ -164,14 +164,16 @@ cfg = {
                             ["!", "(", "<condition>", ")"],
                             ["!!", "(", "<condition>", ")"]],
     
-    "<condition_operator>": [["=="],
-                             ["!="],
-                             ["<"],
-                             [">"],
-                             ["<="],
-                             [">="],
-                             ["&&"],
-                             ["??"]],
+    "<condition_operator>": [["/"], # added operator
+                            ["%"],
+                            ["=="],
+                            ["!="],
+                            ["<"],
+                            [">"],
+                            ["<="],
+                            [">="],
+                            ["&&"],
+				            ["??"]],
     
     "<case_tail>": [["case", "<literals4>", ":", "<statement_block>", "chop", ";", "<case_tail>"],
                        ["λ"]],
@@ -196,7 +198,8 @@ cfg = {
                   ["<unary_op>", "id"]],
     
     "<serve_tail>": [["+", "<value3>", "<serve_tail>"],
-                     ["λ"]]
+                     ["λ"]],
+    "<return_statement>": [["spit", "<expression>"]]
 }
 
 def compute_first_set(cfg):
