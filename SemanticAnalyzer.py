@@ -181,11 +181,11 @@ class SemanticAnalyzer:
         # Handle literals directly
         if hasattr(expr_node, 'value'):
             if hasattr(expr_node, 'node_type'):
-                if expr_node.node_type == "pinchliteral":
+                if expr_node.node_type == "pinchliterals":
                     return "pinch"
-                elif expr_node.node_type == "skimliteral":
+                elif expr_node.node_type == "skimliterals":
                     return "skim"
-                elif expr_node.node_type == "pastaliteral":
+                elif expr_node.node_type == "pastaliterals":
                     return "pasta"
         
         # For parenthesized expressions
@@ -239,7 +239,8 @@ class SemanticAnalyzer:
             return
         
         # Get the variable type and name
-        data_type_node = node.children[0].children[0]  # <data_type> -> terminal
+        data_type_node = node.children[0].children[0]  # <data_type> -> terminal    //missing lit
+        print(f"{node.children[3].value=}")      
         var_type = data_type_node.value
         id_node = node.children[1]
         var_name = id_node.value
@@ -250,11 +251,19 @@ class SemanticAnalyzer:
         try:
             # Add the symbol to the current scope
             self.current_scope.add(var_name, Symbol(var_name, var_type))
-            
             # Check for initialization
-            if len(node.children) > 2 and hasattr(node.children[2], 'value') and node.children[2].value == "=":
+                        # Check for initialization
+            if (
+                len(node.children) > 2
+                and hasattr(node.children[2], "children")
+                and len(node.children[2].children) > 1
+                and hasattr(node.children[2].children[0], "value")
+                and node.children[2].children[0].value == "="
+                and hasattr(node.children[2].children[1], "children")
+                and len(node.children[2].children[1].children) > 0
+            ):
                 # Get the type of the initializer
-                expr_node = node.children[3]
+                expr_node = node.children[2].children[1].children[0]
                 expr_type = self.get_expression_type(expr_node)
                 
                 print(f"Initialization check: {var_name} (type={var_type}) = expression (type={expr_type})")
@@ -336,7 +345,6 @@ class SemanticAnalyzer:
         old_scope = self.current_scope
         self.current_scope = SymbolTable(debugName=f"function_{f_name}", parent=old_scope)
         self.symbol_tables.append(self.current_scope)
-        
         self._process_function_signature(node)
         self.generic_visit(node)
         
