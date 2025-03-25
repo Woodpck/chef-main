@@ -148,7 +148,7 @@ cfg = {
                    ["--"]],
     
     "<conditional_statement>": [["taste", "(", "<condition>", ")", "{", "<statement_block>", "}", "<conditional_tail>"],
-                                ["flip", "(", "<id>", ")", "{", "case", "<literals4>", ":", "<statement_block>", "chop", ";", "<case_tail>", "<default_block>", "}"]],
+                                ["flip", "(", "id", ")", "{", "case", "<literals4>", ":", "<statement_block>", "chop", ";", "<case_tail>", "<default_block>", "}"]],
     
     "<conditional_tail>": [["elif", "(", "<condition>", ")", "{", "<statement_block>", "}", "<conditional_tail>"],
                             ["mix", "{", "<statement_block>", "}"],
@@ -534,69 +534,72 @@ class LL1Parser:
             return False
 
     def improved_syntax_error(self, line_number, found):
-        """Improved syntax error reporting with better context awareness."""
+        """Enhanced syntax error reporting with focused context awareness."""
         token_lexeme = self.input_tokens[self.index][0] if self.index < len(self.input_tokens) else found
         
-        # Determine the current parsing context
+        # Find the immediate context (closest non-terminal we're trying to parse)
         current_context = None
-        expected_tokens = []
-        
-        # Determine what we're currently parsing (last non-terminal on stack)
-        for i in range(len(self.stack) - 1, -1, -1):
-            if i < len(self.stack) and self.stack[i] in self.cfg:
-                current_context = self.stack[i]
+        for item in reversed(self.stack):
+            if isinstance(item, str) and item.startswith('<'):
+                current_context = item
                 break
         
-        # Special case handling based on parsing context
-        if "<function>" in self.stack:
-            # If we're in a function context and encounter 'chef', we likely need '}'
-            if found == 'chef':
-                expected_tokens = ['}']
-            # Other function-related expectations
-            elif current_context == "<function>":
-                expected_tokens = ['full', 'hungry', '}']
-        elif found == 'chef' and current_context == "<program>":
-            # If we see chef in program context and function is on stack,
-            # it suggests a function wasn't properly closed
-            if "<function>" in self.stack:
-                expected_tokens = ['}']
-            else:
-                # Normal expectation when chef appears in program
-                expected_tokens = ['chef']
-        else:
-            # Default case: use parse table to determine expected tokens
-            if current_context in self.parse_table:
-                expected_tokens = list(self.parse_table[current_context].keys())
-                # Remove lambda for clearer messages
-                if "λ" in expected_tokens:
-                    expected_tokens.remove("λ")
-            
-            # Check if we have a specific terminal we're expecting
-            if self.stack and self.stack[-1] not in self.cfg:
-                expected_tokens = [self.stack[-1]]
+        # Find the immediate expected token(s)
+        expected_tokens = set()
+        if self.stack and self.stack[-1] not in self.cfg:  # If expecting a specific terminal
+            expected_tokens.add(self.stack[-1])
+        elif current_context in self.parse_table:
+            # Only look at the immediate production options
+            expected_tokens = set(self.parse_table[current_context].keys())
+            expected_tokens.discard("λ")  # Remove lambda from expected tokens
         
-        # Create the error message
+        # Create a focused error message
+        error_message = f"[SYNTAX_ERROR] at line {line_number}: "
+        
         if expected_tokens:
-            expected_str = ", ".join(f"'{e}'" for e in expected_tokens)
-            error_message = f"Syntax Error at line {line_number}: Unexpected '{token_lexeme}', expected {expected_str}"
+            if len(expected_tokens) <= 3:
+                expected_str = " or ".join(f"'{e}'" for e in sorted(expected_tokens))
+                error_message += f"Expected {expected_str}, but found '{token_lexeme}' while parsing {current_context}"
+            else:
+                error_message += f"Unexpected '{token_lexeme}' while parsing {current_context}"
         else:
-            error_message = f"Syntax Error at line {line_number}: Unexpected '{token_lexeme}'"
-        
-        # Add context about current parsing state
-        if current_context:
-            error_message += f" while parsing <{current_context}>"
-        
-        # Add a recovery hint
-        if expected_tokens and len(expected_tokens) <= 3:
-            error_message += f" - consider adding {' or '.join(f"'{e}'" for e in expected_tokens)}"
+            error_message += f"Unexpected '{token_lexeme}' while parsing {current_context}"
         
         self.errors.append(error_message)
         
-        # Debug info
-        debug_info = f"DEBUG: Stack: {self.stack}, Current index: {self.index}, Line number: {line_number}"
-        # print(debug_info)
+        # Attempt error recovery
+        self._attempt_error_recovery(current_token=found, line_number=line_number)
+    
+    def _attempt_error_recovery(self, current_token, line_number):
+        """Attempt to recover from syntax errors by skipping tokens until a valid state is found."""
+        recovery_attempts = 0
+        max_recovery_attempts = 5  # Limit recovery attempts to prevent infinite loops
         
-        # for non_terminal, productions in cfg.items():
-        #     for i, item in enumerate(productions):
-        #         print(f"{non_terminal} -> {productions[i]}")
+        while recovery_attempts < max_recovery_attempts:
+            # Try to find a synchronization point
+            if self._find_sync_point(current_token):
+                return True
+            
+            # If we can't find a sync point, skip the current token
+            self.index += 1
+            if self.index >= len(self.input_tokens):
+                break
+                
+            current_token = self.input_tokens[self.index][1]
+            recovery_attempts += 1
+        
+        # If we couldn't recover, add a fatal error
+        self.errors.append(f"[FATAL_ERROR] at line {line_number}: Unable to recover from syntax error")
+        return False
+    
+    def _find_sync_point(self, current_token):
+        """Find a synchronization point by checking if the current token can follow any non-terminal on the stack."""
+        for i in range(len(self.stack) - 1, -1, -1):
+            if self.stack[i] in self.cfg:
+                if current_token in self.follow_set.get(self.stack[i], set()):
+                    # Found a sync point, pop everything up to this non-terminal
+                    while len(self.stack) > i + 1:
+                        self.stack.pop()
+                    return True
+        return False
 
