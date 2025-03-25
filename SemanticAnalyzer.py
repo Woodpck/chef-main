@@ -111,11 +111,11 @@ class SemanticAnalyzer:
         # Base case for terminal nodes or nodes without children
         if not hasattr(expr_node, 'children') or not expr_node.children:
             if hasattr(expr_node, 'node_type'):
-                if expr_node.node_type == "pinchliteral":
+                if expr_node.node_type == "pinchliterals":
                     return "pinch"
-                elif expr_node.node_type == "skimliteral":
+                elif expr_node.node_type == "skimliterals":
                     return "skim"
-                elif expr_node.node_type == "pastaliteral":
+                elif expr_node.node_type == "pastaliterals":
                     return "pasta"
                 elif expr_node.node_type == "id":
                     symbol = self.current_scope.lookup(expr_node.value)
