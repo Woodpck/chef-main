@@ -186,7 +186,7 @@ cfg = {
     
     "<looping_statement>": [["for", "(", "<pinch_opt>", "id", "=", "<for_init>", ";", "<condition>", ";", "<inc_dec>", ")", "{", "<statement_block>", "}"],
                             ["simmer" , "(", "<condition>", ")", "{", "<statement_block>", "}"],
-                            ["keepmix", "{", "<statement_block>", "}", "simmer", "(", "<condition>", ")"]],        
+                            ["keepmix", "{", "<statement_block>", "}", "simmer", "(", "<condition>", ")", ";"]],        
                 
     "<pinch_opt>": [["pinch"],
                     ["λ"]],
