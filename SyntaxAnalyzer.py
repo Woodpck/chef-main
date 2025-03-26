@@ -537,7 +537,7 @@ class LL1Parser:
             return False
 
     def improved_syntax_error(self, line_number, found):
-        """Enhanced syntax error reporting with focused context awareness."""
+        """Enhanced syntax error reporting with focused context awareness and helpful messages."""
         token_lexeme = self.input_tokens[self.index][0] if self.index < len(self.input_tokens) else found
         
         # Find the immediate context (closest non-terminal we're trying to parse)
@@ -547,16 +547,39 @@ class LL1Parser:
                 current_context = item
                 break
         
-        # Find the immediate expected token(s)
+        # Special case handling for common errors in assignment context
+        if current_context == "<dec_or_init>" or "<assignment_operator>" in str(self.stack):
+            comparison_operators = {
+                "==": "=",
+                "!=": "=",
+                "<": "=",
+                ">": "=",
+                "<=": "=",
+                ">=": "=",
+                "&&": "=",
+                "??": "="
+            }
+            
+            if token_lexeme in comparison_operators:
+                error_message = f"[SYNTAX_ERROR] at line {line_number}: '{token_lexeme}' is used for comparison, not assignment while parsing {current_context}"
+                self.errors.append(error_message)
+                return
+            
+            # List valid assignment operators for context
+            valid_operators = ["=", "+=", "-=", "*=", "/=", "%="]
+            if token_lexeme not in valid_operators and any(op in token_lexeme for op in ["=", "+", "-", "*", "/", "%"]):
+                error_message = f"[SYNTAX_ERROR] at line {line_number}: Invalid assignment operator '{token_lexeme}'. Valid assignment operators are: {', '.join(valid_operators)}"
+                self.errors.append(error_message)
+                return
+        
+        # Original error handling for other cases
         expected_tokens = set()
-        if self.stack and self.stack[-1] not in self.cfg:  # If expecting a specific terminal
+        if self.stack and self.stack[-1] not in self.cfg:
             expected_tokens.add(self.stack[-1])
         elif current_context in self.parse_table:
-            # Only look at the immediate production options
             expected_tokens = set(self.parse_table[current_context].keys())
-            expected_tokens.discard("λ")  # Remove lambda from expected tokens
+            expected_tokens.discard("λ")
         
-        # Create a focused error message
         error_message = f"[SYNTAX_ERROR] at line {line_number}: "
         
         if expected_tokens:
