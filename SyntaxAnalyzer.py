@@ -436,7 +436,22 @@ class LL1Parser:
         # Process the filtered tokens
         try:
             processed_tokens = [safe_process_token(token) for token in filtered_tokens]
-            processed_tokens.append(('$', '$', -1))  # Add end marker
+            
+            # Check for code after 'takeout'
+            takeout_index = -1
+            for i, token in enumerate(processed_tokens):
+                if token[0] == 'takeout':
+                    takeout_index = i
+                    break
+            
+            if takeout_index != -1 and takeout_index < len(processed_tokens) - 1:
+                # There is code after 'takeout'
+                illegal_token = processed_tokens[takeout_index + 1]
+                self.errors.append(f"[SYNTAX_ERROR] at line {illegal_token[2]}: Unexpected code after 'takeout'. All code must be within 'dinein' and 'takeout'.")
+                return False, self.errors
+
+            # Add end marker only after checking for code after takeout
+            processed_tokens.append(('$', '$', -1))
             
             # Debug: Print processed tokens after filtering comments
             # print("DEBUG: Received Tokens (after comment filtering):")
@@ -487,7 +502,9 @@ class LL1Parser:
             print(self.parse_tree)
             return True, []
         else:
-            return False, ["Incomplete parsing"]
+            if not self.errors:  # Only add this error if no other errors exist
+                self.errors.append("[SYNTAX_ERROR]: Incomplete parsing")
+            return False, self.errors
 
     def _handle_production_end(self):
         """Handle end of production markers"""
@@ -540,7 +557,19 @@ class LL1Parser:
         """Enhanced syntax error reporting with focused context awareness and helpful messages."""
         token_lexeme = self.input_tokens[self.index][0] if self.index < len(self.input_tokens) else found
         
-        # Find the immediate context (closest non-terminal we're trying to parse)
+        # Check if we're at the start of parsing and the first token isn't 'dinein'
+        if self.index == 0 and token_lexeme != 'dinein':
+            error_message = f"[SYNTAX_ERROR] at line {line_number}: Expected 'dinein' at the beginning of the program."
+            self.errors.append(error_message)
+            return
+
+        # Check if we've found code after 'takeout'
+        if 'takeout' in [t[0] for t in self.input_tokens[:self.index]] and self.index < len(self.input_tokens) - 1:
+            error_message = f"[SYNTAX_ERROR] at line {line_number}: Unexpected code after 'takeout'. All code must be within 'dinein' and 'takeout'."
+            self.errors.append(error_message)
+            return
+        
+        # Rest of the existing error handling code...
         current_context = None
         for item in reversed(self.stack):
             if isinstance(item, str) and item.startswith('<'):
