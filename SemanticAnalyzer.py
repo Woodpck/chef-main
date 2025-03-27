@@ -236,62 +236,72 @@ class SemanticAnalyzer:
     def _handle_regular_declaration(self, node):
         # Debug - print the declaration we're processing
         print(f"Processing declaration: {node.value if hasattr(node, 'value') else 'unknown'}")
-        for i, child in enumerate(node.children):
-            print(f"  Child {i}: {child.value if hasattr(child, 'value') else 'unknown'}")
         
         if len(node.children) < 2:
             return
         
-        # Get the variable type and name
-        data_type_node = node.children[0].children[0]  # <data_type> -> terminal    //missing lit
-        print(f"{node.children[3].value=}")      
+        # Get the variable type from the first child
+        data_type_node = node.children[0].children[0]  # <data_type> -> terminal
         var_type = data_type_node.value
+        
+        # Process the initial declaration
         id_node = node.children[1]
         var_name = id_node.value
         line_num = getattr(id_node, 'line_number', -1)
         
-        print(f"Declaration: {var_name} of type {var_type}")
-        
         try:
-            # Add the symbol to the current scope
+            # Add the first symbol to the current scope
             self.current_scope.add(var_name, Symbol(var_name, var_type))
-            # Check for initialization
-                        # Check for initialization
-            if (
-                len(node.children) > 2
-                and hasattr(node.children[2], "children")
-                and len(node.children[2].children) > 1
-                and hasattr(node.children[2].children[0], "value")
-                and node.children[2].children[0].value == "="
-                and hasattr(node.children[2].children[1], "children")
-                and len(node.children[2].children[1].children) > 0
-            ):
-                # Get the type of the initializer
-                expr_node = node.children[2].children[1].children[0]
-                expr_type = self.get_expression_type(expr_node)
+            
+            # Check for initialization and additional declarations
+            if len(node.children) > 2 and node.children[2].children:
+                current_node = node.children[2]
                 
-                print(f"Initialization check: {var_name} (type={var_type}) = expression (type={expr_type})")
+                # Process the first initialization if it exists
+                if current_node.children[0].value == "=":
+                    self._check_initialization(var_name, var_type, current_node.children[1], line_num)
                 
-                # Check compatibility
-                if expr_type is not None and var_type is not None:
-                    compatible = expr_type in self.type_compatibility.get(var_type, [])
+                # Process additional declarations/initializations
+                while current_node.children and len(current_node.children) > 1:
+                    if current_node.children[0].value == ",":
+                        # Get the next identifier
+                        next_id_node = current_node.children[1]
+                        next_var_name = next_id_node.value
+                        next_line_num = getattr(next_id_node, 'line_number', -1)
+                        
+                        # Add the new symbol
+                        try:
+                            self.current_scope.add(next_var_name, Symbol(next_var_name, var_type))
+                            
+                            # Check for initialization of the new variable
+                            if len(current_node.children) > 2 and \
+                               hasattr(current_node.children[2], 'children') and \
+                               current_node.children[2].children and \
+                               current_node.children[2].children[0].value == "=":
+                                self._check_initialization(next_var_name, var_type, 
+                                                         current_node.children[2].children[1], 
+                                                         next_line_num)
+                        except SemanticError as e:
+                            self.errors.append(e)
                     
-                    if not compatible:
-                        self.errors.append(SemanticError(
-                            code="TYPE_MISMATCH", 
-                            message=f"Type mismatch in initialization of '{var_name}': cannot assign '{expr_type}' to '{var_type}'",
-                            line=line_num,
-                            identifier=var_name
-                        ))
-                        print(f"ERROR: Type mismatch detected in initialization! {expr_type} is not compatible with {var_type}")
-        except Exception as e:
-            if isinstance(e, SemanticError):
-                self.errors.append(e)
-            else:
-                print(f"Exception during declaration: {str(e)}")
+                    # Move to the next declaration if it exists
+                    if len(current_node.children) > 2:
+                        current_node = current_node.children[2]
+                    else:
+                        break
+                
+        except SemanticError as e:
+            self.errors.append(e)
+
+    def _check_initialization(self, var_name, var_type, expr_node, line_num):
+        """Helper method to check initialization type compatibility"""
+        expr_type = self.get_expression_type(expr_node)
+        if expr_type is not None and var_type is not None:
+            compatible = self.are_types_compatible(var_type, expr_type)
+            if not compatible:
                 self.errors.append(SemanticError(
-                    code="UNKNOWN_ERROR",
-                    message=f"Error during declaration of '{var_name}': {str(e)}",
+                    code="TYPE_MISMATCH",
+                    message=f"Type mismatch in initialization of '{var_name}': cannot assign '{expr_type}' to '{var_type}'",
                     line=line_num,
                     identifier=var_name
                 ))
