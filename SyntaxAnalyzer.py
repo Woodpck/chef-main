@@ -77,7 +77,7 @@ cfg = {
     
     "<statement_id_tail>": [["(", "<argument_list>", ")", ";"],
                             ["<assignment_operator>", "<expression>", ";"],
-                            ["[", "pinchliterals", "]", "<assignment_operator>", "<arithmetic_exp>", ";"],
+                            ["[", "<recipe_index>", "]", "<assignment_operator>", "<arithmetic_exp>", ";"],
                             ["<unary_op>", ";"]],
     
     "<argument_list>": [["<arithmetic_exp>", "<argument_tail>"],
@@ -128,7 +128,7 @@ cfg = {
                 ["id", "<value_id_tail>"]],
     
     "<value_id_tail>": [["(", "<argument_list>", ")"],
-                ["[", "pinchliterals", "]"],
+                ["[", "<recipe_index>", "]"],
                 ["λ"]],
     
     "<value2>": [["<literals2>"],
@@ -199,7 +199,8 @@ cfg = {
     
     "<serve_tail>": [["+", "<value3>", "<serve_tail>"],
                      ["λ"]],
-    "<return_statement>": [["spit", "<expression>"]]
+    "<return_statement>": [["spit", "<expression>"]],
+    "<recipe_index>": [["<arithmetic_exp>"]]
 }
 
 def compute_first_set(cfg):
@@ -448,8 +449,7 @@ class LL1Parser:
                 # There is code after 'takeout'
                 illegal_token = processed_tokens[takeout_index + 1]
                 self.errors.append(f"[SYNTAX_ERROR] at line {illegal_token[2]}: Unexpected code after 'takeout'. All code must be within 'dinein' and 'takeout'.")
-                return False, self.errors
-
+        
             # Add end marker only after checking for code after takeout
             processed_tokens.append(('$', '$', -1))
             
