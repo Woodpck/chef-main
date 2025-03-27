@@ -361,12 +361,10 @@ class SemanticAnalyzer:
             # Get array name
             id_node = node.children[2]
             var_name = id_node.value
+            line_num = getattr(id_node, 'line_number', None)
             
             # Get array dimension
             dimension_node = node.children[4]
-            
-            line_num = getattr(id_node, 'line', None)
-            
             try:
                 dimension = int(dimension_node.value)
             except (ValueError, AttributeError) as e:
@@ -379,6 +377,23 @@ class SemanticAnalyzer:
                 ))
             
             attributes = {'dimensions': dimension, 'element_type': var_type}
+            
+            # Check initialization
+            if len(node.children) > 6:
+                elements_node = node.children[6]  # This is the <elements> node
+                if hasattr(elements_node, 'children'):
+                    for child in elements_node.children:
+                        if hasattr(child, 'value') and child.value == '<literals>':
+                            # Found the literals node, check its children
+                            for value_node in child.children:
+                                value_type = self.get_expression_type(value_node)
+                                if value_type and value_type != var_type:
+                                    self.errors.append(SemanticError(
+                                        code="TYPE_MISMATCH",
+                                        message=f"Type mismatch in array initialization of '{var_name}': cannot assign '{value_type}' to '{var_type}'",
+                                        line=line_num,
+                                        identifier=var_name
+                                    ))
             
             # Add to symbol table
             self.current_scope.add(var_name, Symbol(var_name, "recipe", attributes))
