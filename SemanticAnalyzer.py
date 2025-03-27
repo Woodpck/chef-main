@@ -219,9 +219,45 @@ class SemanticAnalyzer:
     # Declaration handling
     #-----------------------------------------------------------------
     def visit_global_dec(self, node):
-        print("scope", self.current_scope)
-        self.generic_visit(node)
+        print("\n=== Processing global declaration ===")
+        print(f"Node value: {node.value if hasattr(node, 'value') else 'No value'}")
+        print(f"Number of children: {len(node.children) if hasattr(node, 'children') else 0}")
         
+        # Debug print the entire node structure
+        if hasattr(node, 'children'):
+            for i, child in enumerate(node.children):
+                print(f"\nChild {i}:")
+                print(f"  Value: {child.value if hasattr(child, 'value') else 'No value'}")
+                print(f"  Type: {child.node_type if hasattr(child, 'node_type') else 'No type'}")
+                if hasattr(child, 'children'):
+                    print(f"  Number of grandchildren: {len(child.children)}")
+                    for j, grandchild in enumerate(child.children):
+                        print(f"    Grandchild {j}: {grandchild.value if hasattr(grandchild, 'value') else 'No value'}")
+        
+        # Handle declarations
+        if hasattr(node, 'children'):
+            for child in node.children:
+                if not hasattr(child, 'children') or not child.children:
+                    print(f"Skipping child without children: {child.value if hasattr(child, 'value') else 'No value'}")
+                    continue
+                    
+                try:
+                    first_child = child.children[0]
+                    print(f"Processing child with first_child value: {first_child.value if hasattr(first_child, 'value') else 'No value'}")
+                    
+                    if hasattr(first_child, 'value'):
+                        if first_child.value == 'recipe':
+                            print("Found array declaration, handling...")
+                            self._handle_array_declaration(child)
+                        else:
+                            print("Found regular declaration, handling...")
+                            self._handle_regular_declaration(child)
+                except IndexError as e:
+                    print(f"IndexError while processing child: {e}")
+                    print(f"Child value: {child.value if hasattr(child, 'value') else 'No value'}")
+                    print(f"Child children length: {len(child.children) if hasattr(child, 'children') else 0}")
+                    continue
+
     def visit_declarations(self, node):
         self._handle_regular_declaration(node)
     
@@ -307,37 +343,54 @@ class SemanticAnalyzer:
                 ))
 
     def _handle_array_declaration(self, node):
-        # Expected structure: 'recipe', <data_type2>, id, "[", pinchliterals, "]", <elements>, ";"
+        # Defensive checks
+        if not hasattr(node, 'children'):
+            return
+        
         if len(node.children) < 5:
             return
-        data_type_node = node.children[1].children[0]  # <data_type2> -> terminal
-        var_type = data_type_node.value
-        id_node = node.children[2]
-        var_name = id_node.value
-        # Get array dimension from the pinchliterals node (assumed to be an integer literal)
-        dimension_node = node.children[4]
-        line_num = getattr(id_node, 'line', None)
         
         try:
-            dimension = int(dimension_node.value)
-        except ValueError:
-            dimension = None
-            self.errors.append(SemanticError(
-                code="INVALID_ARRAY_SIZE",
-                message=f"Invalid array size for '{var_name}'", 
-                line=line_num, 
-                identifier=var_name
-            ))
-        attributes = {'dimensions': dimension, 'element_type': var_type}
-        try:
+            # Get array type
+            if not hasattr(node.children[1], 'children') or not node.children[1].children:
+                return
+            
+            data_type_node = node.children[1].children[0]
+            var_type = data_type_node.value
+            
+            # Get array name
+            id_node = node.children[2]
+            var_name = id_node.value
+            
+            # Get array dimension
+            dimension_node = node.children[4]
+            
+            line_num = getattr(id_node, 'line', None)
+            
+            try:
+                dimension = int(dimension_node.value)
+            except (ValueError, AttributeError) as e:
+                dimension = None
+                self.errors.append(SemanticError(
+                    code="INVALID_ARRAY_SIZE",
+                    message=f"Invalid array size for '{var_name}'", 
+                    line=line_num, 
+                    identifier=var_name
+                ))
+            
+            attributes = {'dimensions': dimension, 'element_type': var_type}
+            
+            # Add to symbol table
             self.current_scope.add(var_name, Symbol(var_name, "recipe", attributes))
             
-            # Check if there's an initialization and verify type compatibility of elements
-            if len(node.children) > 7 and node.children[7].value == "=":
-                # TODO: Add array initialization type checking
-                pass
-        except SemanticError as e:
-            self.errors.append(SemanticError(e.code, e.message, line=line_num, identifier=var_name))
+        except Exception as e:
+            if 'var_name' in locals() and 'line_num' in locals():
+                self.errors.append(SemanticError(
+                    code="INVALID_ARRAY_DECLARATION",
+                    message=f"Invalid array declaration: {str(e)}",
+                    line=line_num,
+                    identifier=var_name
+                ))
 
 
     #-----------------------------------------------------------------
