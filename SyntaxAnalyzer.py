@@ -664,11 +664,11 @@ for non_terminal, productions in cfg.items():
 
 print("First Sets:")
 for non_terminal, first in first_set.items():
-    print(f"First({non_terminal})")
+    print(f"First({non_terminal}) = {first}")
 
 print("\nFollow Sets:")
 for non_terminal, follow in follow_set.items():
-    print(f"Follow({non_terminal})")
+    print(f"Follow({non_terminal}) = {follow}")
 
 def display_predict_sets(predict_set):
     print("\nPredict Sets:")
@@ -687,3 +687,4 @@ def display_parse_table(parse_table):
         print()  
 
 display_parse_table(parse_table)
+
