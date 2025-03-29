@@ -657,3 +657,33 @@ class LL1Parser:
                         self.stack.pop()
                     return True
         return False
+    
+for non_terminal, productions in cfg.items():
+    for i, item in enumerate(productions):
+        print(f"{non_terminal} -> {productions[i]}")
+
+print("First Sets:")
+for non_terminal, first in first_set.items():
+    print(f"First({non_terminal})")
+
+print("\nFollow Sets:")
+for non_terminal, follow in follow_set.items():
+    print(f"Follow({non_terminal})")
+
+def display_predict_sets(predict_set):
+    print("\nPredict Sets:")
+    for (non_terminal, production), predict in predict_set.items():
+        production_str = ", ".join(production)
+        print(f"{predict}")
+
+display_predict_sets(predict_set)
+
+def display_parse_table(parse_table):
+    print()
+    for non_terminal, rules in parse_table.items():
+        print(f"Non-terminal: {non_terminal}")
+        for terminal, production in rules.items():
+            print(f"  Terminal: {terminal} -> Production: {production}")
+        print()  
+
+display_parse_table(parse_table)
