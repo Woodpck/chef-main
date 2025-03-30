@@ -335,9 +335,12 @@ class SemanticAnalyzer:
         if expr_type is not None and var_type is not None:
             compatible = self.are_types_compatible(var_type, expr_type)
             if not compatible:
+                # Convert types to literal format
+                target_literal = f"{var_type}literals"
+                expr_literal = f"{expr_type}literals"
                 self.errors.append(SemanticError(
                     code="TYPE_MISMATCH",
-                    message=f"Type mismatch in initialization of '{var_name}': cannot assign '{expr_type}' to '{var_type}'",
+                    message=f"Type mismatch in initialization of '{var_name}': cannot assign '{expr_literal}' to '{target_literal}'",
                     line=line_num,
                     identifier=var_name
                 ))
@@ -388,9 +391,12 @@ class SemanticAnalyzer:
                             for value_node in child.children:
                                 value_type = self.get_expression_type(value_node)
                                 if value_type and value_type != var_type:
+                                    # Convert types to literal format
+                                    target_literal = f"{var_type}literals"
+                                    value_literal = f"{value_type}literals"
                                     self.errors.append(SemanticError(
                                         code="TYPE_MISMATCH",
-                                        message=f"Type mismatch in array initialization of '{var_name}': cannot assign '{value_type}' to '{var_type}'",
+                                        message=f"Type mismatch in array initialization of '{var_name}': cannot assign '{value_literal}' to '{target_literal}'",
                                         line=line_num,
                                         identifier=var_name
                                     ))
@@ -495,9 +501,12 @@ class SemanticAnalyzer:
                         compatible = expr_type in self.type_compatibility.get(target_type, [])
                         
                         if not compatible:
+                            # Convert types to literal format
+                            target_literal = f"{target_type}literals"
+                            expr_literal = f"{expr_type}literals"
                             self.errors.append(SemanticError(
                                 code="TYPE_MISMATCH", 
-                                message=f"Type mismatch in assignment to '{var_name}': cannot assign '{expr_type}' to '{target_type}'",
+                                message=f"Type mismatch in assignment to '{var_name}': cannot assign '{expr_literal}' to '{target_literal}'",
                                 line=line_num,
                                 identifier=var_name
                             ))
@@ -596,10 +605,13 @@ class SemanticAnalyzer:
             expr_node = node.children[1]
             expr_type = self.get_expression_type(expr_node)
             if expr_type and not expr_type in self.type_compatibility.get(self.current_function["return_type"], []):
+                # Convert types to literal format
+                target_literal = f"{self.current_function['return_type']}literals"
+                expr_literal = f"{expr_type}literals"
                 line_num = getattr(node, 'line_number', None)
                 self.errors.append(SemanticError(
                     code="TYPE_MISMATCH", 
-                    message=f"Return type mismatch: cannot convert '{expr_type}' to '{self.current_function['return_type']}'",
+                    message=f"Return type mismatch: cannot convert '{expr_literal}' to '{target_literal}'",
                     line=line_num
                 ))
         
