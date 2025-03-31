@@ -65,7 +65,8 @@ header h1 {
 }
 
 .input-area {
-    position: relative;
+    flex: 1.9; /* Allocate more space to the input area */
+    min-width: 400px; /* Set a comfortable minimum width */
 }
 
 .textarea-wrapper {
@@ -130,10 +131,10 @@ button:hover {
 }
 
 .error-sections {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+    flex: 1; /* Make the error section thinner */
+    min-width: 250px; /* Optional: Ensure a minimum width */
 }
+
 
 .error-block {
     margin-bottom: 10px;
@@ -141,7 +142,7 @@ button:hover {
     border: 1px solid #444;
     border-radius: 8px;
     background-color: #1a1a1a;
-    height: 130px;
+    height: 160px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
