@@ -1,3 +1,4 @@
+
 from SyntaxAnalyzer import ParseTreeNode
 
 class SemanticError(Exception):
