@@ -335,9 +335,12 @@ class SemanticAnalyzer:
         if expr_type is not None and var_type is not None:
             compatible = self.are_types_compatible(var_type, expr_type)
             if not compatible:
+                # Convert base types to literal types for error message
+                literal_type = expr_type + "literals" if expr_type in ["pinch", "skim", "pasta"] else expr_type
+                target_literal_type = var_type + "literals" if var_type in ["pinch", "skim", "pasta"] else var_type
                 self.errors.append(SemanticError(
                     code="TYPE_MISMATCH",
-                    message=f"Type mismatch in initialization of '{var_name}': cannot assign '{expr_type}' to '{var_type}'",
+                    message=f"Type mismatch in initialization of '{var_name}': cannot assign '{literal_type}' to '{target_literal_type}'",
                     line=line_num,
                     identifier=var_name
                 ))
@@ -388,9 +391,12 @@ class SemanticAnalyzer:
                             for value_node in child.children:
                                 value_type = self.get_expression_type(value_node)
                                 if value_type and value_type != var_type:
+                                    # Convert base types to literal types for error message
+                                    literal_type = value_type + "literals" if value_type in ["pinch", "skim", "pasta"] else value_type
+                                    target_literal_type = var_type + "literals" if var_type in ["pinch", "skim", "pasta"] else var_type
                                     self.errors.append(SemanticError(
                                         code="TYPE_MISMATCH",
-                                        message=f"Type mismatch in array initialization of '{var_name}': cannot assign '{value_type}' to '{var_type}'",
+                                        message=f"Type mismatch in array initialization of '{var_name}': cannot assign '{literal_type}' to '{target_literal_type}'",
                                         line=line_num,
                                         identifier=var_name
                                     ))
@@ -495,13 +501,16 @@ class SemanticAnalyzer:
                         compatible = expr_type in self.type_compatibility.get(target_type, [])
                         
                         if not compatible:
+                            # Convert base types to literal types for error message
+                            literal_type = expr_type + "literals" if expr_type in ["pinch", "skim", "pasta"] else expr_type
+                            target_literal_type = target_type + "literals" if target_type in ["pinch", "skim", "pasta"] else target_type
                             self.errors.append(SemanticError(
                                 code="TYPE_MISMATCH", 
-                                message=f"Type mismatch in assignment to '{var_name}': cannot assign '{expr_type}' to '{target_type}'",
+                                message=f"Type mismatch in assignment to '{var_name}': cannot assign '{literal_type}' to '{target_literal_type}'",
                                 line=line_num,
                                 identifier=var_name
                             ))
-                            print(f"ERROR: Type mismatch detected! {expr_type} is not compatible with {target_type}")
+                            print(f"ERROR: Type mismatch detected! {literal_type} is not compatible with {target_literal_type}")
         
         # Continue with generic visit to process other types of statements
         self.generic_visit(node)
@@ -597,9 +606,12 @@ class SemanticAnalyzer:
             expr_type = self.get_expression_type(expr_node)
             if expr_type and not expr_type in self.type_compatibility.get(self.current_function["return_type"], []):
                 line_num = getattr(node, 'line_number', None)
+                # Convert base types to literal types for error message
+                literal_type = expr_type + "literals" if expr_type in ["pinch", "skim", "pasta"] else expr_type
+                target_literal_type = self.current_function["return_type"] + "literals" if self.current_function["return_type"] in ["pinch", "skim", "pasta"] else self.current_function["return_type"]
                 self.errors.append(SemanticError(
                     code="TYPE_MISMATCH", 
-                    message=f"Return type mismatch: cannot convert '{expr_type}' to '{self.current_function['return_type']}'",
+                    message=f"Return type mismatch: cannot convert '{literal_type}' to '{target_literal_type}'",
                     line=line_num
                 ))
         
