@@ -2553,8 +2553,8 @@ class LexicalAnalyzer:
                     if c and (c.isalpha() or c.isdigit() or c == '_'):
                         lexeme += c
                         
-                        if len(lexeme) > 20:
-                            self.errors.append(f"Line {line}: id '{lexeme}' exceeds 20 characters.")
+                        if len(lexeme) > 32:
+                            self.errors.append(f"Line {line}: id '{lexeme}' exceeds 32 characters.")
                             state = 0
 
                     elif c in self.id_delim:
