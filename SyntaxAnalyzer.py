@@ -5,7 +5,7 @@ class SyntaxAnalyzer:
 
 cfg = {
 
-    "<program>": [["dinein", "<global_dec>", "<function>", "chef", "pinch", "dish", "(", ")", "{", "<local_dec>", "<statement_block>", "spit", "pinchliterals", ";", "}", "takeout"]],
+    "<program>": [["dinein", "<global_dec>", "<function>", "chef", "pinch", "dish", "(", ")", "{", "<local_dec>", "<statement_block>", "spit", "yum", ";", "}", "takeout"]],
 	
     "<global_dec>": [["<declarations>", "<global_dec>"],
 					["λ"]],
