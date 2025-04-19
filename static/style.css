@@ -33,22 +33,30 @@ header h1 {
     margin: 0;
 }
 
+/* New layout structure */
+.layout-container {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
 
-.three-column-layout {
+.top-section {
     display: flex;
     gap: 30px;
     flex-wrap: wrap;
 }
 
+.bottom-section {
+    margin-top: 30px; /* Adds spacing between the error section and result table */
+}
+
 @media (max-width: 1200px) {
-    .three-column-layout {
+    .top-section {
         flex-direction: column;
     }
 }
 
 .column {
-    flex: 1;
-    min-width: 300px;
     background-color: #222;
     padding: 20px;
     border-radius: 8px;
@@ -62,6 +70,125 @@ header h1 {
     color: #00ffff;
     border-bottom: 1px solid #444;
     padding-bottom: 8px;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+    display: flex;
+    border-bottom: 2px solid #333;
+    margin-bottom: 15px;
+}
+
+.tab-button {
+    background: none;
+    border: none;
+    padding: 8px 15px;
+    color: #888;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+
+.tab-button.active {
+    color: #fff;
+    border-bottom: 2px solid #00b7c7;
+    margin-bottom: -2px;
+}
+
+.tab-button:hover:not(.active) {
+    color: #ccc;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 15px;
+    background-color: #1a1a1a;
+    border-radius: 8px;
+    border: 1px solid #444;
+    margin-bottom: 15px;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+}
+
+.status-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+}
+
+.status-icon.success {
+    background-color: #0d3b24;
+    color: #4eff91;
+}
+
+.status-icon.error {
+    background-color: #3b0d0d;
+    color: #ff6b6b;
+}
+
+.status-text {
+    color: #fff;
+}
+
+.error-count {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #222;
+    color: #fff;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    margin-left: 8px;
+}
+
+/* Error details section */
+.error-details {
+    padding: 15px;
+    border: 1px solid #444;
+    border-radius: 8px;
+    background-color: #1a1a1a;
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.error-message {
+    font-size: 14px;
+    white-space: pre-wrap;
+    color: #ff6b6b;
+    font-family: monospace;
+    margin-bottom: 10px;
+}
+
+/* Tab Content */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
 }
 
 .input-area {
@@ -110,14 +237,14 @@ header h1 {
     display: flex;
     gap: 15px;
     justify-content: space-between;
-}
+} 
 
 button {
     padding: 10px 20px;
     border: none;
     border-radius: 6px;
     background-color: #00b7c7;
-    color: white;
+    color: rgb(228, 251, 193);
     cursor: pointer;
     transition: all 0.3s ease;
     font-weight: bold;
@@ -125,16 +252,29 @@ button {
 }
 
 button:hover {
-    background-color: #00d7e9;
+    background-color: #00e5e9ea;
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 255, 255, 0.2);
+}
+
+/* Override for tab buttons */
+.tab-button {
+    background-color: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 8px 15px;
+}
+
+.tab-button:hover {
+    background-color: transparent;
+    transform: none;
+    box-shadow: none;
 }
 
 .error-sections {
     flex: 1; /* Make the error section thinner */
     min-width: 250px; /* Optional: Ensure a minimum width */
 }
-
 
 .error-block {
     margin-bottom: 10px;
@@ -173,14 +313,49 @@ button:hover {
     font-family: monospace;
 }
 
+/* Output block styling */
+.output-block {
+    padding: 15px;
+    border: 1px solid #444;
+    border-radius: 8px;
+    background-color: #1a1a1a;
+    height: 500px; /* Taller than error blocks to fill the same space */
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.output-message {
+    font-size: 14px;
+    white-space: pre-wrap;
+    color: #fff;
+    font-family: monospace;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.no-output-message {
+    color: #888;
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 16px;
+    font-family: monospace;
+}
+
 .result-table {
     background-color: #222;
     padding: 20px;
     border-radius: 8px;
+    width: 100%;
+    margin-bottom: 20px; /* Adds some space at the bottom */
 }
 
 .table-container {
     max-height: 430px;
+    width: 100%;
     overflow-y: auto;
     border: 1px solid #444;
     border-radius: 6px;
@@ -196,16 +371,16 @@ th, td {
     border: 1px solid #444;
     padding: 10px;
     text-align: left;
+    word-break: break-word; /* This helps with long content */
 }
 
-th {
-    background-color: #00b7c7; 
-    color: white;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+th:first-child, td:first-child {
+    width: 60%; /* Adjust the lexeme column to take more space */
 }
 
+th:last-child, td:last-child {
+    width: 40%; /* Token column takes less space */
+}
 tr:nth-child(even) {
     background-color: #1a1a1a;
 }
@@ -238,4 +413,34 @@ tr:hover {
 
 ::-webkit-scrollbar-thumb:hover {
     background-color: #00b7c7;
+}
+
+/* Loading overlay with transitions */
+#loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #444;
+    border-top: 5px solid #00b7c7;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }

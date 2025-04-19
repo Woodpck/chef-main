@@ -2631,6 +2631,51 @@ class LexicalAnalyzer:
             print("\nLexical Errors:\n")
             for error in self.errors:
                     print(error)
+    
+def make_string_fixed(self):
+    id_str = ""
+    c = self.nextChar()
+    start_line = self.line_number
+    escape_character = False
+    
+    while c is not None: 
+        if escape_character:
+            # Properly handle escape sequences
+            if c == 'n':
+                id_str += '\n'  # Convert \n to actual newline character
+            elif c == 't':
+                id_str += '\t'  # Convert \t to actual tab character
+            elif c in ['"', '\\']: 
+                id_str += c
+            else:
+                id_str += '\\' + c  # Keep unrecognized escape sequences as is
+            escape_character = False
+        elif c == '\\':
+            escape_character = True
+        elif c == '"':
+            c = self.nextChar()
+            if c is not None and c not in self.ascii_delim:
+                self.errors.append(f"Line {self.line_number}: Invalid delimiter '{c}' after string")
+                return []
+            else:
+                self.identifier_count += 1
+                token_name = f"string{self.identifier_count}"
+                if c is not None:
+                    self.stepBack()
+                return [(id_str, token_name, start_line)]
+        elif c == '\n':
+            self.errors.append(f"Line {start_line}: String not properly closed with double quotes")
+            return []
+        else:
+            id_str += c
+        c = self.nextChar()
+    
+    self.errors.append(f"Line {start_line}: String not properly closed with double quotes")
+    return []
+
+# Add the fixed method to the class
+LexicalAnalyzer.make_string = make_string_fixed
+
 
 if __name__ == "__main__":
     try:
@@ -2644,6 +2689,7 @@ if __name__ == "__main__":
     analyzer = LexicalAnalyzer()
     tokens = analyzer.tokenize(code)
 
+    # Fixed to handle 3-tuple tokens
     analyzer.display_tokens(tokens)
     analyzer.display_errors()
     print("\nEnd of program analysis.\n")

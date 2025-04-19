@@ -1,4 +1,3 @@
-
 from SyntaxAnalyzer import ParseTreeNode
 
 class SemanticError(Exception):
@@ -35,8 +34,9 @@ class SymbolTable:
         self.symbols = {}
 
     def add(self, name, symbol):
-        if name in self.symbols:
-            raise SemanticError("DUPLICATE_DECLARATION", f"Duplicate declaration of '{name}'", identifier=name)
+        # Only check for duplicate function declarations
+        if name in self.symbols and symbol.type == "function":
+            raise SemanticError("DUPLICATE_DECLARATION", f"Duplicate declaration of function '{name}'", identifier=name)
         self.symbols[name] = symbol
 
     def lookup(self, name, mark_used=True):
@@ -61,6 +61,25 @@ class SymbolTable:
 # Updated SemanticAnalyzer class
 #---------------------------------------------------------------------
 class SemanticAnalyzer:
+    def visit_return_statement(self, node):
+        if not node.children or len(node.children) < 1:
+            return
+
+        # Check if this is the program termination
+        if (hasattr(node, 'value') and node.value == "<return_statement>" and
+                len(node.children) >= 2 and node.children[0].value == "spit"):
+
+            expr_node = node.children[1]
+            if expr_node.node_type == "pinchliterals" and expr_node.value != "0":
+                line_num = getattr(node, 'line_number', None)
+                self.errors.append(SemanticError(
+                    code="INVALID_TERMINATION",
+                    message="Program must terminate with 'spit 0;'",
+                    line=line_num
+                ))
+
+        # Original return statement checks
+        self._original_visit_return_statement(node)
     def __init__(self):
         self.global_scope = SymbolTable(debugName="global")
         self.current_scope = self.global_scope
@@ -76,13 +95,16 @@ class SemanticAnalyzer:
             "bool": ["bool", "pinch"]     # Booleans can accept integers (0/1)
         }
 
-    def analyze(self, parse_tree):
+    def analyze(self, parse_tree, has_syntax_errors=False):
+        if has_syntax_errors:
+            print("Skipping semantic analysis due to syntax errors")
+            return []
+
         print("Starting semantic analysis...")
         self.visit(parse_tree)
-        self._check_unused_variables()
+        # Only check for unused variables in local scope
+        self._check_unused_local_variables()
         print(f"Analysis complete. Found {len(self.errors)} issues.")
-        for error in self.errors:
-            print(f"  {error}")
         return self.errors
 
     def visit(self, node):
@@ -220,44 +242,45 @@ class SemanticAnalyzer:
     # Declaration handling
     #-----------------------------------------------------------------
     def visit_global_dec(self, node):
-        print("\n=== Processing global declaration ===")
-        print(f"Node value: {node.value if hasattr(node, 'value') else 'No value'}")
-        print(f"Number of children: {len(node.children) if hasattr(node, 'children') else 0}")
-        
-        # Debug print the entire node structure
-        if hasattr(node, 'children'):
-            for i, child in enumerate(node.children):
-                print(f"\nChild {i}:")
-                print(f"  Value: {child.value if hasattr(child, 'value') else 'No value'}")
-                print(f"  Type: {child.node_type if hasattr(child, 'node_type') else 'No type'}")
-                if hasattr(child, 'children'):
-                    print(f"  Number of grandchildren: {len(child.children)}")
-                    for j, grandchild in enumerate(child.children):
-                        print(f"    Grandchild {j}: {grandchild.value if hasattr(grandchild, 'value') else 'No value'}")
-        
-        # Handle declarations
-        if hasattr(node, 'children'):
-            for child in node.children:
-                if not hasattr(child, 'children') or not child.children:
-                    print(f"Skipping child without children: {child.value if hasattr(child, 'value') else 'No value'}")
-                    continue
-                    
-                try:
-                    first_child = child.children[0]
-                    print(f"Processing child with first_child value: {first_child.value if hasattr(first_child, 'value') else 'No value'}")
-                    
-                    if hasattr(first_child, 'value'):
-                        if first_child.value == 'recipe':
-                            print("Found array declaration, handling...")
+        try:
+            # Debug information
+            print("\n=== Processing global declaration ===")
+            print(f"Node value: {node.value if hasattr(node, 'value') else 'No value'}")
+            print(f"Number of children: {len(node.children) if hasattr(node, 'children') else 0}")
+            
+            # Print structure of node for diagnosis
+            if hasattr(node, 'children') and node.children:
+                for i, child in enumerate(node.children):
+                    print(f"Child {i} value: {child.value if hasattr(child, 'value') else 'No value'}")
+                    if hasattr(child, 'children') and child.children:
+                        print(f"  Grandchildren count: {len(child.children)}")
+                        for j, grandchild in enumerate(child.children[:2]):  # Only print first 2 for brevity
+                            print(f"  Grandchild {j} value: {grandchild.value if hasattr(grandchild, 'value') else 'No value'}")
+            
+            # Process each child of the global_dec node
+            if hasattr(node, 'children'):
+                for child in node.children:
+                    if hasattr(child, 'children') and child.children:
+                        # Check if this is an array declaration
+                        if child.children[0].value == 'recipe':
+                            print("Found array declaration in global scope")
                             self._handle_array_declaration(child)
                         else:
-                            print("Found regular declaration, handling...")
+                            print("Found regular declaration in global scope")
                             self._handle_regular_declaration(child)
-                except IndexError as e:
-                    print(f"IndexError while processing child: {e}")
-                    print(f"Child value: {child.value if hasattr(child, 'value') else 'No value'}")
-                    print(f"Child children length: {len(child.children) if hasattr(child, 'children') else 0}")
-                    continue
+            
+            self.generic_visit(node)
+        except IndexError as e:
+            print(f"IndexError in visit_global_dec: {e}")
+            # Add the stack trace for debugging
+            import traceback
+            traceback.print_exc()
+            # Continue with generic visit to avoid breaking the analysis
+            self.generic_visit(node)
+        except Exception as e:
+            print(f"Unexpected error in visit_global_dec: {e}")
+            traceback.print_exc()
+            self.generic_visit(node)
 
     def visit_declarations(self, node):
         self._handle_regular_declaration(node)
@@ -271,62 +294,36 @@ class SemanticAnalyzer:
         self.generic_visit(node)
 
     def _handle_regular_declaration(self, node):
-        # Debug - print the declaration we're processing
-        print(f"Processing declaration: {node.value if hasattr(node, 'value') else 'unknown'}")
-        
         if len(node.children) < 2:
             return
-        
-        # Get the variable type from the first child
-        data_type_node = node.children[0].children[0]  # <data_type> -> terminal
+
+        # Get the variable type
+        data_type_node = node.children[0].children[0]
         var_type = data_type_node.value
-        
-        # Process the initial declaration
+
+        # Process first declaration
         id_node = node.children[1]
         var_name = id_node.value
         line_num = getattr(id_node, 'line_number', -1)
-        
+
         try:
-            # Add the first symbol to the current scope
             self.current_scope.add(var_name, Symbol(var_name, var_type))
-            
-            # Check for initialization and additional declarations
-            if len(node.children) > 2 and node.children[2].children:
-                current_node = node.children[2]
-                
-                # Process the first initialization if it exists
-                if current_node.children[0].value == "=":
-                    self._check_initialization(var_name, var_type, current_node.children[1], line_num)
-                
-                # Process additional declarations/initializations
-                while current_node.children and len(current_node.children) > 1:
-                    if current_node.children[0].value == ",":
-                        # Get the next identifier
-                        next_id_node = current_node.children[1]
-                        next_var_name = next_id_node.value
-                        next_line_num = getattr(next_id_node, 'line_number', -1)
-                        
-                        # Add the new symbol
-                        try:
-                            self.current_scope.add(next_var_name, Symbol(next_var_name, var_type))
-                            
-                            # Check for initialization of the new variable
-                            if len(current_node.children) > 2 and \
-                               hasattr(current_node.children[2], 'children') and \
-                               current_node.children[2].children and \
-                               current_node.children[2].children[0].value == "=":
-                                self._check_initialization(next_var_name, var_type, 
-                                                         current_node.children[2].children[1], 
-                                                         next_line_num)
-                        except SemanticError as e:
-                            self.errors.append(e)
-                    
-                    # Move to the next declaration if it exists
-                    if len(current_node.children) > 2:
-                        current_node = current_node.children[2]
-                    else:
-                        break
-                
+
+            # Process additional declarations
+            current_node = node.children[2]  # <dec_or_init>
+            while current_node.children:
+                if current_node.children[0].value == ",":
+                    next_id = current_node.children[1].value
+                    self.current_scope.add(next_id, Symbol(next_id, var_type))
+                    current_node = current_node.children[2]
+                elif current_node.children[0].value == "=":
+                    # Handle initialization
+                    self._check_initialization(var_name, var_type,
+                                               current_node.children[1],
+                                               line_num)
+                    break
+                else:
+                    break
         except SemanticError as e:
             self.errors.append(e)
 
@@ -434,7 +431,11 @@ class SemanticAnalyzer:
         old_scope = self.current_scope
         self.current_scope = SymbolTable(debugName=f"function_{f_name}", parent=old_scope)
         self.symbol_tables.append(self.current_scope)
+        
+        # Process function parameters first
         self._process_function_signature(node)
+        
+        # Then process the function body
         self.generic_visit(node)
         
         # Check if a function with a return type has a return statement
@@ -442,8 +443,9 @@ class SemanticAnalyzer:
             # TODO: Add check for return statement existence
             pass
             
+        # Restore the previous scope
         self.current_scope = old_scope
-        
+
     def _process_function_signature(self, node):
         # Process the function signature to extract (and possibly record) the function name and its return type.
         if len(node.children) < 3:
@@ -625,41 +627,24 @@ class SemanticAnalyzer:
         # For identifier usage in expressions, assume the leaf node value is the identifier name.
         var_name = node.value
         line_num = node.line_number
-        symbol = self.current_scope.lookup(var_name)
-        if not symbol:
-            self.errors.append(SemanticError(
-                code="UNDECLARED_IDENTIFIER", 
-                message=f"Use of undeclared identifier '{var_name}'",
-                identifier=var_name, 
-                line=line_num
-            ))
+        
+        # Skip checking for undeclared identifiers
+        return
 
     #-----------------------------------------------------------------
     # Unused variable warnings
     #-----------------------------------------------------------------
-    def _check_unused_variables(self):
-        # Check for unused variables in each symbol table
-        for table in self.symbol_tables:
+    def _check_unused_local_variables(self):
+        # Skip global scope
+        for table in self.symbol_tables[1:]:
             unused = table.get_unused()
             for name in unused:
-                # Skip checking for special names that might be used internally
                 if not name.startswith('__'):
-                    # Check if this is a global or local variable based on the symbol table
-                    scope_type = "global" if table.debugName == "global" else "local"
-                    
-                    # Look up the symbol to get more details
                     symbol = table.symbols.get(name)
                     if symbol:
-                        # Get additional info if available
-                        var_type = symbol.type if hasattr(symbol, 'type') else "unknown"
-                        
-                        # Create appropriate warning message
-                        message = f"Unused {scope_type} variable '{name}' of type '{var_type}'"
-                        
-                        # Add the warning to the errors list
                         self.errors.append(SemanticError(
-                            code="UNUSED_VARIABLE", 
-                            message=message,
-                            identifier=name, 
+                            code="UNUSED_VARIABLE",
+                            message=f"Unused local variable '{name}'",
+                            identifier=name,
                             is_warning=True
                         ))

@@ -1,9 +1,9 @@
 dinein
 
 chef pinch dish(){
-    pinch a = 5
-    pinch b = 3
-    pinch c = 7
+    pinch a = 5;
+    pinch b = 3;
+    pinch c = 7;
 
     pinch result = (a > b) && (b < c);
 

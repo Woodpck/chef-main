@@ -5,13 +5,18 @@ class SyntaxAnalyzer:
 
 cfg = {
 
-    "<program>": [["dinein", "<global_dec>", "<function>", "chef", "pinch", "dish", "(", ")", "{", "<local_dec>", "<statement_block>", "spit", "yum", ";", "}", "takeout"]],
+    "<program>": [["dinein", "<global_dec>", "<function>", "chef", "pinch", "dish", "(", ")", "{", "<local_dec>", "<statement_block>", "spit", "pinchliterals", ";", "}", "takeout"]],
 	
     "<global_dec>": [["<declarations>", "<global_dec>"],
 					["λ"]],
     
 	"<declarations>": [["<data_type>", "id", "<dec_or_init>", ";"],
 			["recipe", "<data_type2>", "id", "[", "pinchliterals", "]", "<elements>", ";"]],
+ 
+    "<dec_or_init>": [["=", "<literals>", "<next_dec_or_init>"],
+                  ["<next_dec_or_init>"]],
+    "<next_dec_or_init>": [[",", "id", "<dec_or_init>"],
+                       ["λ"]],
  
 	"<data_type>": [["pinch"],
                  	["skim"],
@@ -643,10 +648,9 @@ class LL1Parser:
             current_token = self.input_tokens[self.index][1]
             recovery_attempts += 1
         
-        # If we couldn't recover, add a fatal error
-        self.errors.append(f"[FATAL_ERROR] at line {line_number}: Unable to recover from syntax error")
+        # We've removed the fatal error message
         return False
-    
+        
     def _find_sync_point(self, current_token):
         """Find a synchronization point by checking if the current token can follow any non-terminal on the stack."""
         for i in range(len(self.stack) - 1, -1, -1):

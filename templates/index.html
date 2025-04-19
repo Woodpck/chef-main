@@ -1,58 +1,81 @@
 <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>ChefScript</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    </head>
-    <body>
-        <header>
-            <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Header Image" class="header-image">
-            <h1>ChefScript</h1>
-        </header>
-        <main class="three-column-layout">
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChefScript</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Header Image" class="header-image">
+        <h1>ChefScript</h1>
+    </header>
+    <main class="layout-container">
+        <!-- Loading overlay -->
+        <div id="loading-overlay">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- Top section with input and errors side by side -->
+        <div class="top-section">
             <div class="column input-area">
-                <form method="POST">
+                <form id="codeForm" method="POST">
                     <div class="textarea-wrapper">
                         <div class="line-numbers" id="lineNumbers"></div>
-                        <textarea name="code" placeholder="Enter your code here..." oninput="updateLineNumbers()" onscroll="syncScroll()">{{ code }}</textarea>
+                        <textarea name="code" id="codeTextarea" placeholder="Enter your code here..." oninput="updateLineNumbers()" onscroll="syncScroll()">{{ code }}</textarea>
                     </div>
                     <div class="button-container">
-                        <button type="submit" name="action" value="Lexical">Lexical Analyzer</button>
-                        <button type="submit" name="action" value="Syntax">Syntax Analyzer</button>
-                        <button type="submit" name="action" value="Semantic">Semantic Analyzer</button>
+                        <button type="button" class="action-button" data-action="Run" id="runProgramButton">Run Program</button>
                     </div>
                 </form>
             </div>
     
             <div class="column error-sections">
-                <div class="error-block">
-                    <h2>Lexical Errors</h2>
-                    {% if error_tokens_text %}
-                        <p class="error-message">{{ error_tokens_text }}</p>
-                    {% else %}
-                        <p class="success-message">No Lexical Analysis Errors!</p>
-                    {% endif %}
+                <!-- Tab Navigation -->
+                <div class="tab-navigation">
+                    <button class="tab-button {% if active_tab == 'errors' %}active{% endif %}" onclick="showTab('errors')">ERRORS <span class="error-count" id="error-count">0</span></button>
+                    <button class="tab-button {% if active_tab == 'output' %}active{% endif %}" onclick="showTab('output')">OUTPUT</button>
                 </div>
-                <div class="error-block">
-                    <h2>Syntax Errors</h2>
-                    {% if error_syntax_text %}
-                        <p class="error-message">{{ error_syntax_text }}</p>
-                    {% else %}
-                        <p class="success-message">No Syntax Analysis Errors!</p>
-                    {% endif %}
+            
+                <!-- Errors Tab Content -->
+                <div id="errors-tab" class="tab-content {% if active_tab == 'errors' %}active{% endif %}">
+                    <div class="status-list">
+                        <div class="status-item" id="lexical-status">
+                            <span class="status-icon success">✓</span>
+                            <span class="status-text">Success from Lexical</span>
+                        </div>
+                        <div class="status-item" id="syntax-status">
+                            <span class="status-icon success">✓</span>
+                            <span class="status-text">Success from Syntax</span>
+                        </div>
+                        <div class="status-item" id="semantic-status">
+                            <span class="status-icon success">✓</span>
+                            <span class="status-text">Success from Semantic</span>
+                        </div>
+                    </div>
+                    
+                    <div class="error-details" id="error-details">
+                        <!-- Error details will appear here when there are errors -->
+                        <div id="lexical-errors" class="success-message"></div>
+                        <div id="syntax-errors" class="success-message"></div>
+                        <div id="semantic-errors" class="success-message"></div>
+                    </div>
                 </div>
-                <div class="error-block">
-                    <h2>Semantic Errors</h2>
-                    {% if error_semantic_text %}
-                        <p class="error-message">{{ error_semantic_text }}</p>
-                    {% else %}
-                        <p class="success-message">No Semantic Analysis Errors!</p>
-                    {% endif %}
+    
+                <!-- Output Tab Content -->
+                <div id="output-tab" class="tab-content {% if active_tab == 'output' %}active{% endif %}">
+                    <div class="output-block">
+                        <p id="output-content" class="{% if output_text %}output-message{% else %}no-output-message{% endif %}">
+                            {% if output_text %}{{ output_text }}{% else %}No output generated yet{% endif %}
+                        </p>
+                    </div>
                 </div>
             </div>
-            
+        </div>
+    
+        <!-- Result Table placed below input and error sections -->
+        <div class="bottom-section">
             <div class="column result-table">
                 <h2>Lexical and Token Table</h2>
                 <div class="table-container">
@@ -63,7 +86,7 @@
                                 <th>Token</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="result-table-body">
                             {% if result and result|length > 0 %}
                                 {% for lexeme, token in result %}
                                     <tr>
@@ -79,75 +102,257 @@
                         </tbody>
                     </table>
                 </div>
-            </div>        
-        </main>
-    
-        <script>
-            function updateLineNumbers() {
-                const textarea = document.querySelector('textarea[name="code"]');
-                const lineNumbers = document.getElementById('lineNumbers');
-                const lines = textarea.value.split('\n').length;
-                lineNumbers.innerHTML = Array(lines).fill().map((_, i) => i + 1).join('<br>');
-            }
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Line number functions
+        function updateLineNumbers() {
+            const textarea = document.getElementById('codeTextarea');
+            const lineNumbers = document.getElementById('lineNumbers');
+            const lines = textarea.value.split('\n').length;
+            lineNumbers.innerHTML = Array(lines).fill().map((_, i) => i + 1).join('<br>');
+        }
+        
+        function syncScroll() {
+            const textarea = document.getElementById('codeTextarea');
+            const lineNumbers = document.getElementById('lineNumbers');
+            lineNumbers.scrollTop = textarea.scrollTop;
+        }
+        
+        // Tab switching
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
             
-            function syncScroll() {
-                const textarea = document.querySelector('textarea[name="code"]');
-                const lineNumbers = document.getElementById('lineNumbers');
-                lineNumbers.scrollTop = textarea.scrollTop;
-            }
+            // Deactivate all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
             
-            document.addEventListener("DOMContentLoaded", function () {
-                updateLineNumbers();
-                
-                const textarea = document.querySelector('textarea[name="code"]');
-                
-                // Tab key handler
-                textarea.addEventListener("keydown", function (event) {
-                    if (event.key === "Tab") {
-                        event.preventDefault();
-                        const start = textarea.selectionStart;
-                        const end = textarea.selectionEnd;
-                        const spaces = "    ";
-                        textarea.value = textarea.value.substring(0, start) + spaces + textarea.value.substring(end);
-                        textarea.selectionStart = textarea.selectionEnd = start + spaces.length;
-                    }
+            // Show the selected tab content
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Activate the clicked tab button
+            document.querySelector(`.tab-button[onclick="showTab('${tabName}')"]`).classList.add('active');
+        }
+        
+        // Update result table
+        function updateResultTable(results) {
+            const tableBody = document.getElementById('result-table-body');
+            tableBody.innerHTML = '';
+            
+            if (results && results.length > 0) {
+                results.forEach(result => {
+                    const row = document.createElement('tr');
+                    const lexemeCell = document.createElement('td');
+                    const tokenCell = document.createElement('td');
                     
-                    // Auto-closing for parentheses, braces, and quotes
-                    if (event.key === "(" || event.key === "{" || event.key === "\"" || event.key === "'") {
-                        event.preventDefault();
-                        const start = textarea.selectionStart;
-                        const end = textarea.selectionEnd;
-                        
-                        // Get the closing character
-                        let closingChar;
-                        if (event.key === "(") {
-                            closingChar = ")";
-                        } else if (event.key === "{") {
-                            closingChar = "}";
-                        } else { // For quotation marks (both single and double)
-                            closingChar = event.key; // Same character for opening and closing
+                    lexemeCell.textContent = result[0];
+                    tokenCell.textContent = result[1];
+                    
+                    row.appendChild(lexemeCell);
+                    row.appendChild(tokenCell);
+                    tableBody.appendChild(row);
+                });
+            } else {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.className = 'no-results';
+                cell.colSpan = 2;
+                cell.textContent = 'No results yet';
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+            }
+        }
+        
+        // Update error displays and status icons
+        function updateErrorDisplay(elementId, errorText, isError) {
+            const element = document.getElementById(elementId);
+            
+            if (isError) {
+                element.className = 'error-message';
+                element.textContent = errorText;
+                
+                // Update status icon based on error type
+                const statusId = elementId.replace('-errors', '-status');
+                const statusElement = document.getElementById(statusId);
+                if (statusElement) {
+                    const iconElement = statusElement.querySelector('.status-icon');
+                    const textElement = statusElement.querySelector('.status-text');
+                    
+                    iconElement.className = 'status-icon error';
+                    iconElement.textContent = '✗';
+                    textElement.textContent = 'Error from ' + elementId.split('-')[0].charAt(0).toUpperCase() + elementId.split('-')[0].slice(1);
+                }
+                
+                // Show error details section
+                document.getElementById('error-details').style.display = 'block';
+            } else {
+                element.className = 'success-message';
+                element.textContent = errorText;
+                
+                // Update status icon
+                const statusId = elementId.replace('-errors', '-status');
+                const statusElement = document.getElementById(statusId);
+                if (statusElement) {
+                    const iconElement = statusElement.querySelector('.status-icon');
+                    const textElement = statusElement.querySelector('.status-text');
+                    
+                    iconElement.className = 'status-icon success';
+                    iconElement.textContent = '✓';
+                    textElement.textContent = 'Success from ' + elementId.split('-')[0].charAt(0).toUpperCase() + elementId.split('-')[0].slice(1);
+                }
+            }
+            
+            // Update error count badge
+            updateErrorCount();
+        }
+        
+        // Update error count
+        function updateErrorCount() {
+            const lexicalHasError = document.getElementById('lexical-errors').className === 'error-message';
+            const syntaxHasError = document.getElementById('syntax-errors').className === 'error-message';
+            const semanticHasError = document.getElementById('semantic-errors').className === 'error-message';
+            
+            const errorCount = (lexicalHasError ? 1 : 0) + (syntaxHasError ? 1 : 0) + (semanticHasError ? 1 : 0);
+            document.getElementById('error-count').textContent = errorCount;
+            
+            // If no errors, hide error details section
+            if (errorCount === 0) {
+                document.getElementById('error-details').style.display = 'none';
+            }
+        }
+        
+        // Document ready
+        document.addEventListener("DOMContentLoaded", function() {
+            updateLineNumbers();
+            updateErrorCount();
+            
+            const textarea = document.getElementById('codeTextarea');
+            const form = document.getElementById('codeForm');
+            const actionButtons = document.querySelectorAll('.action-button');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            
+            // Add click event for all action buttons
+            actionButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Show loading overlay with transition
+                    loadingOverlay.style.display = 'flex';
+                    setTimeout(() => {
+                        loadingOverlay.style.opacity = 1;
+                    }, 10);
+                    
+                    // Get the action from button data attribute
+                    const action = this.getAttribute('data-action');
+                    
+                    // Create form data
+                    const formData = new FormData(form);
+                    formData.append('action', action);
+                    
+                    // Perform AJAX request
+                    fetch(window.location.href, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
                         }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Update result table
+                        updateResultTable(data.result);
                         
-                        // Insert opening char, selected text, and closing char
-                        const selectedText = textarea.value.substring(start, end);
-                        textarea.value = textarea.value.substring(0, start) + 
-                                        event.key + selectedText + closingChar + 
-                                        textarea.value.substring(end);
+                        // Update error displays
+                        updateErrorDisplay('lexical-errors', data.error_tokens_text, !!data.error_tokens_text);
+                        updateErrorDisplay('syntax-errors', data.error_syntax_text, !!data.error_syntax_text);
+                        updateErrorDisplay('semantic-errors', data.error_semantic_text, !!data.error_semantic_text);
                         
-                        // Position cursor appropriately
-                        if (start === end) {
-                            // If no text is selected, place cursor between the characters
-                            textarea.selectionStart = textarea.selectionEnd = start + 1;
+                        // Update output content
+                        const outputElement = document.getElementById('output-content');
+                        if (data.output_text) {
+                            outputElement.className = 'output-message';
+                            outputElement.textContent = data.output_text;
                         } else {
-                            // If text is selected, place cursor after the closing character
-                            textarea.selectionStart = textarea.selectionEnd = end + 2;
+                            outputElement.className = 'no-output-message';
+                            outputElement.textContent = 'No output generated yet';
                         }
                         
-                        // Update line numbers after inserting
-                        updateLineNumbers();
-                    }
+                        // Switch to active tab if provided
+                        if (data.active_tab) {
+                            showTab(data.active_tab);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while processing your request.');
+                    })
+                    .finally(() => {
+                        // Hide loading overlay with transition
+                        loadingOverlay.style.opacity = 0;
+                        setTimeout(() => {
+                            loadingOverlay.style.display = 'none';
+                        }, 300);
+                    });
                 });
             });
-        </script>
-    </body>
-    </html>
+            
+            // Tab key handler
+            textarea.addEventListener("keydown", function (event) {
+                if (event.key === "Tab") {
+                    event.preventDefault();
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const spaces = "    ";
+                    textarea.value = textarea.value.substring(0, start) + spaces + textarea.value.substring(end);
+                    textarea.selectionStart = textarea.selectionEnd = start + spaces.length;
+                    
+                    // Update line numbers after tab insertion
+                    updateLineNumbers();
+                }
+                
+                // Auto-closing for parentheses, braces, and quotes
+                if (event.key === "(" || event.key === "{" || event.key === "\"" || event.key === "'") {
+                    event.preventDefault();
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    
+                    // Get the closing character
+                    let closingChar;
+                    if (event.key === "(") {
+                        closingChar = ")";
+                    } else if (event.key === "{") {
+                        closingChar = "}";
+                    } else { // For quotation marks (both single and double)
+                        closingChar = event.key; // Same character for opening and closing
+                    }
+                    
+                    // Insert opening char, selected text, and closing char
+                    const selectedText = textarea.value.substring(start, end);
+                    textarea.value = textarea.value.substring(0, start) + 
+                                    event.key + selectedText + closingChar + 
+                                    textarea.value.substring(end);
+                    
+                    // Position cursor appropriately
+                    if (start === end) {
+                        // If no text is selected, place cursor between the characters
+                        textarea.selectionStart = textarea.selectionEnd = start + 1;
+                    } else {
+                        // If text is selected, place cursor after the closing character
+                        textarea.selectionStart = textarea.selectionEnd = end + 2;
+                    }
+                    
+                    // Update line numbers after inserting
+                    updateLineNumbers();
+                }
+            });
+            
+            // Initialize line numbers on load
+            updateLineNumbers();
+        });
+    </script>
+</body>
+</html>
