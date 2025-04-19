@@ -102,7 +102,15 @@ class SemanticAnalyzer:
             return []
 
         print("Starting semantic analysis...")
+        # Clear the output buffer at the start of analysis
+        self.output_buffer = []
+        
+        # Store the parse tree for function evaluation
+        self.parse_tree = parse_tree
+        self._in_semantic_analysis = True  # Set flag for semantic analysis mode
         self.visit(parse_tree)
+        self._in_semantic_analysis = False  # Clear flag after semantic analysis
+        
         # Only check for unused variables in local scope
         self._check_unused_local_variables()
         print(f"Analysis complete. Found {len(self.errors)} issues.")
@@ -417,35 +425,43 @@ class SemanticAnalyzer:
     # Function handling
     #-----------------------------------------------------------------
     def visit_function(self, node):
-        f_name = "unknown"  # Default value
-        return_type = "void"  # Default return type
+        """Handle function declarations"""
+        print("\n=== Processing function declaration ===")
         
-        if len(node.children) >= 2:
-            f_name = node.children[2].value if node.children[0].value == "full" else node.children[1].value
-            return_type = node.children[1].children[0].value if node.children[0].value == "full" else "void"
-            try:
-                self.global_scope.add(f_name, Symbol(f_name, "function", {"return_type": return_type}))
-            except Exception as e:
-                self.errors.append(e)
-        
-        # Create a new scope for the function body
-        old_scope = self.current_scope
-        self.current_scope = SymbolTable(debugName=f"function_{f_name}", parent=old_scope)
-        self.symbol_tables.append(self.current_scope)
-        
-        # Process function parameters first
-        self._process_function_signature(node)
-        
-        # Then process the function body
-        self.generic_visit(node)
-        
-        # Check if a function with a return type has a return statement
-        if return_type != "void":
-            # TODO: Add check for return statement existence
-            pass
+        # Get function name and return type
+        if len(node.children) >= 3:
+            if node.children[0].value == "full":
+                # Full function with return type
+                return_type = node.children[1].children[0].value
+                func_name = node.children[2].value
+            else:
+                # Hungry function (void return)
+                return_type = "void"
+                func_name = node.children[1].value
             
-        # Restore the previous scope
-        self.current_scope = old_scope
+            print(f"Found function: {func_name} with return type {return_type}")
+            
+            # Register the function in the global scope
+            try:
+                self.global_scope.add(func_name, Symbol(func_name, "function", {"return_type": return_type}))
+                print(f"Registered function {func_name} in global scope")
+            except SemanticError as e:
+                self.errors.append(e)
+                return
+            
+            # Create a new scope for the function body
+            old_scope = self.current_scope
+            self.current_scope = SymbolTable(debugName=f"function_{func_name}", parent=old_scope)
+            self.symbol_tables.append(self.current_scope)
+            
+            # Process function parameters first
+            self._process_function_signature(node)
+            
+            # Then process the function body
+            self.generic_visit(node)
+            
+            # Restore the previous scope
+            self.current_scope = old_scope
 
     def _process_function_signature(self, node):
         # Process the function signature to extract (and possibly record) the function name and its return type.
@@ -522,7 +538,6 @@ class SemanticAnalyzer:
     def visit_serve_statement(self, node, parent=None):
         """Handle the 'serve' statement (function call)"""
         print("\n=== Debug: Processing serve statement ===")
-        print(f"Node value: {node.value if hasattr(node, 'value') else 'No value'}")
         
         # If we have a parent node, use it
         if parent and hasattr(parent, 'children') and len(parent.children) >= 6:
@@ -535,18 +550,19 @@ class SemanticAnalyzer:
                         statement_node = child
                         break
                 else:
-                    print("Could not find statement node")
+                    print("No statement node found")
                     return
             else:
-                print("No children in serve node")
+                print("No children in node")
                 return
         
-        print(f"Statement node value: {statement_node.value}")
-        print(f"Statement children count: {len(statement_node.children)}")
-        
         # The argument should be in the third child (index 2)
+        if len(statement_node.children) < 3:
+            print("Statement node has insufficient children")
+            return
+            
         arg_node = statement_node.children[2]
-        print(f"Argument node value: {arg_node.value}")
+        print(f"Argument node: {arg_node.value if hasattr(arg_node, 'value') else 'No value'}")
         
         # Check if this is a function call
         if hasattr(arg_node, 'children') and arg_node.children:
@@ -558,74 +574,132 @@ class SemanticAnalyzer:
                 # Look up the function in the symbol table
                 func_symbol = self.global_scope.lookup(func_name)
                 if func_symbol and func_symbol.type == "function":
-                    # Get the return value from the function
-                    return_value = self._evaluate_function_call(func_name)
-                    if return_value is not None:
-                        # Only add to output buffer if it's not already there
-                        if not self.output_buffer or self.output_buffer[-1] != str(return_value):
-                            self.output_buffer.append(str(return_value))
+                    # Execute the function and get its output
+                    function_output = self._evaluate_function_call(func_name)
+                    if function_output:
+                        # Add the function's output to our output buffer
+                        print(f"Adding function output to buffer: {function_output}")
+                        self.output_buffer.extend(function_output)
+                    else:
+                        print(f"No output from function {func_name}")
                 else:
-                    print(f"Function {func_name} not found or not a function")
+                    print(f"Function {func_name} not found in symbol table")
+                    self.errors.append(SemanticError(
+                        code="UNDECLARED_FUNCTION",
+                        message=f"Function '{func_name}' is not declared",
+                        identifier=func_name
+                    ))
             else:
                 # Handle literals3 node for string literals
                 literals3_node = arg_node.children[0]
-                print(f"Literals3 node value: {literals3_node.value}")
-                
                 if hasattr(literals3_node, 'children') and literals3_node.children:
-                    # The string literal should be the first child of literals3
                     string_node = literals3_node.children[0]
-                    print(f"String node type: {string_node.node_type if hasattr(string_node, 'node_type') else 'No node type'}")
-                    print(f"String node value: {string_node.value if hasattr(string_node, 'value') else 'No value'}")
-                    
                     if hasattr(string_node, 'node_type') and string_node.node_type == "pastaliterals":
-                        # Handle string literals directly
-                        print(f"Found string literal: {string_node.value}")
-                        # Only add to output buffer if it's not already there
-                        if not self.output_buffer or self.output_buffer[-1] != string_node.value.strip('"'):
-                            self.output_buffer.append(string_node.value.strip('"'))
-                    elif hasattr(string_node, 'value'):
-                        # Only add to output buffer if it's not already there
-                        if not self.output_buffer or self.output_buffer[-1] != str(string_node.value).strip('"'):
-                            self.output_buffer.append(str(string_node.value).strip('"'))
-        
-        print("=== End of serve statement processing ===\n")
+                        # Add the string literal to the output buffer
+                        value = string_node.value.strip('"')
+                        print(f"Adding string literal to buffer: {value}")
+                        self.output_buffer.append(value)
+        else:
+            # Handle direct string literals
+            if hasattr(arg_node, 'node_type') and arg_node.node_type == "pastaliterals":
+                value = arg_node.value.strip('"')
+                print(f"Adding direct string literal to buffer: {value}")
+                self.output_buffer.append(value)
 
     def _evaluate_function_call(self, func_name):
-        """Evaluate a function call and return its value"""
-        print(f"\n=== Debug: Evaluating function call {func_name} ===")
+        """Evaluate a function call and return its output"""
+        print(f"\n=== Evaluating function call: {func_name} ===")
         
         # Look up the function in the symbol table
         func_symbol = self.global_scope.lookup(func_name)
         if not func_symbol or func_symbol.type != "function":
-            print(f"Function {func_name} not found or not a function")
+            print(f"Function {func_name} not found in symbol table")
+            return None
+        
+        print(f"Found function symbol: {func_symbol}")
+        
+        # Find the function's body in the AST
+        if not hasattr(self, 'parse_tree') or not self.parse_tree:
+            print("No parse tree available")
             return None
             
-        # Get the function's return type
-        return_type = func_symbol.attributes.get('return_type', 'void')
-        print(f"Function return type: {return_type}")
+        print("Searching for function definition in parse tree...")
         
-        # For now, we'll just return a dummy value based on the return type
-        # In a real implementation, you would need to:
-        # 1. Find the function's body in the AST
-        # 2. Execute the function's statements
-        # 3. Return the actual value from the function
-        if return_type == "pinch":
-            return 42  # Example integer return value
-        elif return_type == "skim":
-            return 3.14  # Example float return value
-        elif return_type == "pasta":
-            return "asdasd"  # Example string return value
-        elif return_type == "bool":
-            return True  # Example boolean return value
+        # First find the <function> node
+        function_node = None
+        for node in self.parse_tree.children:
+            if hasattr(node, 'value') and node.value == "<function>":
+                print(f"Found function node: {node.value}")
+                # Check if this is the function we're looking for
+                if len(node.children) >= 3:
+                    if node.children[0].value == "full" and node.children[2].value == func_name:
+                        function_node = node
+                        print(f"Found full function definition for {func_name}")
+                        break
+                    elif node.children[0].value == "hungry" and node.children[1].value == func_name:
+                        function_node = node
+                        print(f"Found hungry function definition for {func_name}")
+                        break
+        
+        if not function_node:
+            print(f"Could not find function definition for {func_name}")
+            return None
             
-        return None
+        print(f"Found function definition for {func_name}")
+        
+        # Create a new scope for the function
+        old_scope = self.current_scope
+        self.current_scope = SymbolTable(debugName=f"function_{func_name}", parent=old_scope)
+        
+        # Store the current output buffer and create a new one for the function
+        old_output_buffer = self.output_buffer
+        self.output_buffer = []
+        
+        try:
+            # Execute the function body
+            for child in function_node.children:
+                if hasattr(child, 'value') and child.value == "<statement_block>":
+                    print("Processing function body...")
+                    for stmt in child.children:
+                        if hasattr(stmt, 'value') and stmt.value == "<statement>":
+                            # Skip if we're in semantic analysis mode
+                            if hasattr(self, '_in_semantic_analysis') and self._in_semantic_analysis:
+                                continue
+                            self.visit(stmt)
+            
+            # Get the function's output
+            function_output = self.output_buffer.copy()
+            print(f"Function {func_name} output: {function_output}")
+            
+            return function_output
+            
+        finally:
+            # Always restore the previous scope and output buffer
+            self.current_scope = old_scope
+            self.output_buffer = old_output_buffer
 
     def get_output(self):
         """Get the accumulated output from serve statements"""
         if not self.output_buffer:
             return "===Program executed successfully==="
-        return "\n".join(self.output_buffer) + "\n\n===Program executed successfully==="
-
+        
+        # Process each item in the output buffer
+        processed_output = []
+        for item in self.output_buffer:
+            # Strip quotes from string literals if present
+            if isinstance(item, str):
+                item = item.strip('"')
+            processed_output.append(str(item))
+        
+        # Join the processed output with newlines
+        output = "\n".join(processed_output)
+        
+        # Only add success message if we have actual output
+        if output:
+            output += "\n\n===Program executed successfully==="
+        
+        return output
+    
     def visit_looping_statement(self, node):
         if not node.children:
             return
