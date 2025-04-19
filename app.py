@@ -55,19 +55,14 @@ def analyze(code):
             
             for error in semantic_errors_exceptions:
                 semantic_errors.append(str(error))
+            
+            # Get output from semantic analyzer if no errors
+            if not semantic_errors:
+                output = analyzer.get_output()
+                if not output:
+                    output = "Program executed successfully with no output."
     
-    # Generate output with escaped characters handled properly
-    if code.strip() and not syntax_errors and not semantic_errors:
-        # Assuming your code would generate some result string
-        # This is where you'd put your actual code execution logic
-        result = "Program executed successfully with output: Hello\\nWorld\\t!"
-        
-        # Process the result by properly handling escape sequences
-        if result:
-            output = process_output(result)
-        else:
-            output = "Program executed with no output."
-    elif syntax_errors or semantic_errors:
+    if syntax_errors or semantic_errors:
         output = "Cannot run program with errors."
     
     return tokens, syntax_errors, semantic_errors, output
@@ -124,9 +119,15 @@ def index():
                 # Keep the default "No output generated yet" message by not changing output_text
                 pass  # Don't modify output_text when code is empty
             elif not error_tokens_text and not error_syntax_text and not error_semantic_text:
-                # Get actual program output
-                raw_output = "Program executed successfully"
-                output_text = process_output(raw_output)
+                # Use the existing analyzer instance that was created during semantic analysis
+                if 'analyzer' in locals() and 'parser' in locals():
+                    semantic_errors_exceptions = analyzer.analyze(parser.parse_tree)
+                    if not semantic_errors_exceptions:  # Only proceed if no semantic errors
+                        output_text = process_output(analyzer.get_output())
+                    else:
+                        output_text = "Cannot run program with errors."
+                else:
+                    output_text = "Error: Program analysis not completed properly."
             else:
                 output_text = "Cannot run program with errors."
             

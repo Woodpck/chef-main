@@ -86,6 +86,7 @@ class SemanticAnalyzer:
         self.errors = []
         self.symbol_tables = [self.global_scope]
         self.current_function = None
+        self.output_buffer = []  # Buffer to store output from serve statements
         # Define type compatibility rules
         self.type_compatibility = {
             "pinch": ["pinch"],           # Integers
@@ -107,7 +108,7 @@ class SemanticAnalyzer:
         print(f"Analysis complete. Found {len(self.errors)} issues.")
         return self.errors
 
-    def visit(self, node):
+    def visit(self, node, parent=None):
         # If the node label is a non-terminal (e.g., "<local_declarations>") then try to call its visitor.
         if isinstance(node.value, str) and node.value.startswith('<') and node.value.endswith('>'):
             method_name = "visit_" + node.value.strip('<>').replace('-', '_')
@@ -119,12 +120,12 @@ class SemanticAnalyzer:
             if node.node_type == "id":
                 self.check_id_usage(node)
             elif node.value == "serve":
-                self.visit_serve_statement(node)
+                self.visit_serve_statement(node, parent)
             self.generic_visit(node)
 
     def generic_visit(self, node):
         for child in node.children:
-            self.visit(child)
+            self.visit(child, node)
 
     #-----------------------------------------------------------------
     # Type checking utility methods
@@ -518,28 +519,113 @@ class SemanticAnalyzer:
         # Continue with generic visit to process other types of statements
         self.generic_visit(node)
     
-    def visit_serve_statement(self, node):
+    def visit_serve_statement(self, node, parent=None):
         """Handle the 'serve' statement (function call)"""
-        if not hasattr(node, 'children') or len(node.children) < 3:
-            return
+        print("\n=== Debug: Processing serve statement ===")
+        print(f"Node value: {node.value if hasattr(node, 'value') else 'No value'}")
         
-        # Check for arguments
-        if len(node.children) >= 3 and hasattr(node.children[2], 'value') and node.children[2].value == "<value3>":
-            arg_node = node.children[2]
-            arg_type = self.get_expression_type(arg_node)
+        # If we have a parent node, use it
+        if parent and hasattr(parent, 'children') and len(parent.children) >= 6:
+            statement_node = parent
+        else:
+            # Otherwise, look for the statement node in the current node's children
+            if hasattr(node, 'children') and node.children:
+                for child in node.children:
+                    if hasattr(child, 'value') and child.value == "<statement>":
+                        statement_node = child
+                        break
+                else:
+                    print("Could not find statement node")
+                    return
+            else:
+                print("No children in serve node")
+                return
+        
+        print(f"Statement node value: {statement_node.value}")
+        print(f"Statement children count: {len(statement_node.children)}")
+        
+        # The argument should be in the third child (index 2)
+        arg_node = statement_node.children[2]
+        print(f"Argument node value: {arg_node.value}")
+        
+        # Check if this is a function call
+        if hasattr(arg_node, 'children') and arg_node.children:
+            if arg_node.children[0].node_type == "id":
+                # This is a function call
+                func_name = arg_node.children[0].value
+                print(f"Found function call: {func_name}")
+                
+                # Look up the function in the symbol table
+                func_symbol = self.global_scope.lookup(func_name)
+                if func_symbol and func_symbol.type == "function":
+                    # Get the return value from the function
+                    return_value = self._evaluate_function_call(func_name)
+                    if return_value is not None:
+                        # Only add to output buffer if it's not already there
+                        if not self.output_buffer or self.output_buffer[-1] != str(return_value):
+                            self.output_buffer.append(str(return_value))
+                else:
+                    print(f"Function {func_name} not found or not a function")
+            else:
+                # Handle literals3 node for string literals
+                literals3_node = arg_node.children[0]
+                print(f"Literals3 node value: {literals3_node.value}")
+                
+                if hasattr(literals3_node, 'children') and literals3_node.children:
+                    # The string literal should be the first child of literals3
+                    string_node = literals3_node.children[0]
+                    print(f"String node type: {string_node.node_type if hasattr(string_node, 'node_type') else 'No node type'}")
+                    print(f"String node value: {string_node.value if hasattr(string_node, 'value') else 'No value'}")
+                    
+                    if hasattr(string_node, 'node_type') and string_node.node_type == "pastaliterals":
+                        # Handle string literals directly
+                        print(f"Found string literal: {string_node.value}")
+                        # Only add to output buffer if it's not already there
+                        if not self.output_buffer or self.output_buffer[-1] != string_node.value.strip('"'):
+                            self.output_buffer.append(string_node.value.strip('"'))
+                    elif hasattr(string_node, 'value'):
+                        # Only add to output buffer if it's not already there
+                        if not self.output_buffer or self.output_buffer[-1] != str(string_node.value).strip('"'):
+                            self.output_buffer.append(str(string_node.value).strip('"'))
+        
+        print("=== End of serve statement processing ===\n")
+
+    def _evaluate_function_call(self, func_name):
+        """Evaluate a function call and return its value"""
+        print(f"\n=== Debug: Evaluating function call {func_name} ===")
+        
+        # Look up the function in the symbol table
+        func_symbol = self.global_scope.lookup(func_name)
+        if not func_symbol or func_symbol.type != "function":
+            print(f"Function {func_name} not found or not a function")
+            return None
             
-            print(f"Serve statement with argument of type: {arg_type}")
+        # Get the function's return type
+        return_type = func_symbol.attributes.get('return_type', 'void')
+        print(f"Function return type: {return_type}")
+        
+        # For now, we'll just return a dummy value based on the return type
+        # In a real implementation, you would need to:
+        # 1. Find the function's body in the AST
+        # 2. Execute the function's statements
+        # 3. Return the actual value from the function
+        if return_type == "pinch":
+            return 42  # Example integer return value
+        elif return_type == "skim":
+            return 3.14  # Example float return value
+        elif return_type == "pasta":
+            return "asdasd"  # Example string return value
+        elif return_type == "bool":
+            return True  # Example boolean return value
             
-            # Serve typically expects a pasta type (string) for output
-            if arg_type and arg_type != "pasta":
-                line_num = getattr(node, 'line_number', None) or getattr(arg_node, 'line_number', None)
-                self.errors.append(SemanticError(
-                    code="TYPE_MISMATCH", 
-                    message=f"Type mismatch in 'serve' statement: expected 'pasta', got '{arg_type}'",
-                    line=line_num
-                ))
-                print(f"ERROR: Serve statement expects 'pasta' type, but got {arg_type}")
-    
+        return None
+
+    def get_output(self):
+        """Get the accumulated output from serve statements"""
+        if not self.output_buffer:
+            return "===Program executed successfully==="
+        return "\n".join(self.output_buffer) + "\n\n===Program executed successfully==="
+
     def visit_looping_statement(self, node):
         if not node.children:
             return

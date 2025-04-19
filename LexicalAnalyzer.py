@@ -13,7 +13,7 @@ class LexicalAnalyzer:
         self.colon_delim = {':'}
         self.newline_delim ={'\n'}
         self.oparan_delim = {'('}
-        self.delim0 = {'()'} | self.space_delim
+        self.delim0 = {' ', '\t', '\n', '(', ')', ';', ',', '{', '}', '[', ']', '=', '+', '-', '*', '/', '%', '<', '>', '&', '|', '?', '!', '"', '~'}
         
         self.bool_delim = {';', ' ', ')', ',', '(', '<', '>', '&', '|'}
         self.operator_delim = {'>', '<', '=', '&', '|', '+', '-', '*', '/', '%'}
