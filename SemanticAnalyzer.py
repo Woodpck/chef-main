@@ -22,9 +22,20 @@ class Symbol:
         self.type = symbol_type  # e.g., "pinch", "skim", "pasta"
         self.attributes = attributes or {}  # For arrays: e.g., {'dimensions': 10, 'element_type': 'pinch'}
         self.is_used = False  # Track if the symbol is used
+        self.value = None  # Store the actual value of the symbol
+        print(f"Created symbol: {self.name} of type {self.type}")
 
     def __repr__(self):
-        return f"Symbol(name={self.name}, type={self.type}, attributes={self.attributes})"
+        return f"Symbol(name={self.name}, type={self.type}, value={self.value}, attributes={self.attributes})"
+
+    def set_value(self, value):
+        print(f"Setting value for {self.name}: {value}")
+        self.value = value
+        self.is_used = True
+
+    def get_value(self):
+        print(f"Getting value for {self.name}: {self.value}")
+        return self.value
 
 
 class SymbolTable:
@@ -32,21 +43,27 @@ class SymbolTable:
         self.parent = parent
         self.debugName = debugName
         self.symbols = {}
+        print(f"Created symbol table: {debugName}")
 
     def add(self, name, symbol):
         # Only check for duplicate function declarations
         if name in self.symbols and symbol.type == "function":
             raise SemanticError("DUPLICATE_DECLARATION", f"Duplicate declaration of function '{name}'", identifier=name)
         self.symbols[name] = symbol
+        print(f"Added symbol {name} to table {self.debugName}")
 
     def lookup(self, name, mark_used=True):
+        print(f"Looking up symbol: {name} in table {self.debugName}")
         if name in self.symbols:
             if mark_used:
                 self.symbols[name].is_used = True
+            print(f"Found symbol {name} in table {self.debugName}")
             return self.symbols[name]
         elif self.parent:
+            print(f"Symbol {name} not found in {self.debugName}, checking parent")
             return self.parent.lookup(name, mark_used)
         else:
+            print(f"Symbol {name} not found in any scope")
             return None
 
     def get_unused(self):
@@ -107,9 +124,9 @@ class SemanticAnalyzer:
         
         # Store the parse tree for function evaluation
         self.parse_tree = parse_tree
-        self._in_semantic_analysis = True  # Set flag for semantic analysis mode
+        
+        # Visit the parse tree
         self.visit(parse_tree)
-        self._in_semantic_analysis = False  # Clear flag after semantic analysis
         
         # Only check for unused variables in local scope
         self._check_unused_local_variables()
@@ -292,7 +309,39 @@ class SemanticAnalyzer:
             self.generic_visit(node)
 
     def visit_declarations(self, node):
-        self._handle_regular_declaration(node)
+        print("\n" + "="*50)
+        print("DEBUG: Processing declaration")
+        print("="*50)
+        
+        if not node.children or len(node.children) < 2:
+            return
+            
+        # Get the variable type
+        data_type_node = node.children[0].children[0]
+        var_type = data_type_node.value
+        print(f"Variable type: {var_type}")
+        
+        # Get the variable name
+        id_node = node.children[1]
+        var_name = id_node.value
+        print(f"Variable name: {var_name}")
+        
+        # Create and add the symbol
+        symbol = Symbol(var_name, var_type)
+        self.current_scope.add(var_name, symbol)
+        print(f"Added symbol: {symbol}")
+        
+        # Handle initialization if present
+        if len(node.children) > 2 and node.children[2].value == "<dec_or_init>":
+            init_node = node.children[2]
+            if init_node.children and init_node.children[0].value == "=":
+                expr_node = init_node.children[1]
+                value = self._evaluate_expression(expr_node)
+                if value is not None:
+                    symbol.set_value(value)
+                    print(f"Initialized {var_name} with value: {value}")
+        
+        self.generic_visit(node)
     
     def visit_local_declarations(self, node):
         # Determine whether this is an array declaration or a regular variable declaration.
@@ -484,70 +533,120 @@ class SemanticAnalyzer:
         if not node.children:
             return
         
+        print("\n" + "="*50)
+        print("DEBUG: Starting statement processing")
+        print("="*50)
+        
         # Debug - print what kind of statement we're processing
-        print(f"Processing statement: {node.value if hasattr(node, 'value') else 'unknown'}")
-        for i, child in enumerate(node.children):
-            print(f"  Child {i}: {child.value if hasattr(child, 'value') else 'unknown'}")
+        print(f"\n=== Processing statement ===")
+        print(f"Statement node: {node.value if hasattr(node, 'value') else 'No value'}")
+        print(f"Statement children: {[child.value if hasattr(child, 'value') else 'No value' for child in node.children]}")
         
         # Check if this is an assignment
-        if len(node.children) >= 3:
+        if len(node.children) >= 2:
             first_child = node.children[0]
             second_child = node.children[1]
             
-            if hasattr(first_child, 'node_type') and first_child.node_type == "id" and \
-            hasattr(second_child, 'value') and second_child.value in ["=", "+=", "-=", "*=", "/=", "%="]:
+            print(f"\nFirst child: {first_child.value if hasattr(first_child, 'value') else 'No value'}")
+            print(f"First child type: {first_child.node_type if hasattr(first_child, 'node_type') else 'No type'}")
+            print(f"Second child: {second_child.value if hasattr(second_child, 'value') else 'No value'}")
+            print(f"Second child type: {second_child.node_type if hasattr(second_child, 'node_type') else 'No type'}")
+            
+            # Check if this is an assignment statement
+            if hasattr(first_child, 'node_type') and first_child.node_type == "id":
                 var_name = first_child.value
-                line_num = getattr(first_child, 'line_number', None)
+                print(f"\nFound identifier: {var_name}")
                 
-                # Look up the symbol
-                symbol = self.current_scope.lookup(var_name)
-                if not symbol:
-                    self.errors.append(SemanticError(
-                        code="UNDECLARED_IDENTIFIER", 
-                        message=f"Assignment to undeclared identifier '{var_name}'",
-                        line=line_num,
-                        identifier=var_name
-                    ))
-                else:
-                    # Get the type of the expression being assigned
-                    expr_node = node.children[2]
-                    expr_type = self.get_expression_type(expr_node)
-                    target_type = symbol.type
+                # Check if this has an assignment operator
+                if hasattr(second_child, 'value') and second_child.value == "<statement_id_tail>":
+                    print("\nFound statement_id_tail")
+                    print(f"Statement_id_tail children: {[child.value if hasattr(child, 'value') else 'No value' for child in second_child.children]}")
                     
-                    print(f"Assignment check: {var_name} (type={target_type}) = expression (type={expr_type})")
-                    
-                    # Check if the types are compatible
-                    if expr_type is not None and target_type is not None:
-                        compatible = expr_type in self.type_compatibility.get(target_type, [])
+                    if second_child.children and len(second_child.children) >= 2:
+                        operator_node = second_child.children[0]
+                        expr_node = second_child.children[1]
                         
-                        if not compatible:
-                            # Convert base types to literal types for error message
-                            literal_type = expr_type + "literals" if expr_type in ["pinch", "skim", "pasta"] else expr_type
-                            target_literal_type = target_type + "literals" if target_type in ["pinch", "skim", "pasta"] else target_type
-                            self.errors.append(SemanticError(
-                                code="TYPE_MISMATCH", 
-                                message=f"Type mismatch in assignment to '{var_name}': cannot assign '{literal_type}' to '{target_literal_type}'",
-                                line=line_num,
-                                identifier=var_name
-                            ))
-                            print(f"ERROR: Type mismatch detected! {literal_type} is not compatible with {target_literal_type}")
+                        print(f"\nProcessing expression for {var_name}")
+                        print(f"Operator node: {operator_node.value if hasattr(operator_node, 'value') else 'No value'}")
+                        print(f"Expression node: {expr_node.value if hasattr(expr_node, 'value') else 'No value'}")
+                        print(f"Expression node type: {expr_node.node_type if hasattr(expr_node, 'node_type') else 'No type'}")
+                        print(f"Expression children: {[child.value if hasattr(child, 'value') else 'No value' for child in expr_node.children] if hasattr(expr_node, 'children') else 'No children'}")
+                        
+                        if hasattr(operator_node, 'value') and operator_node.value in ["=", "+=", "-=", "*=", "/=", "%="]:
+                            print(f"\nFound assignment operator: {operator_node.value}")
+                            
+                            # Look up the symbol
+                            symbol = self.current_scope.lookup(var_name)
+                            if not symbol:
+                                # If symbol doesn't exist, create it as a pinch type
+                                print(f"Creating new symbol for {var_name}")
+                                symbol = Symbol(var_name, "pinch")
+                                self.current_scope.add(var_name, symbol)
+                            
+                            print(f"\nFound symbol: {symbol}")
+                            print(f"Current symbol value: {symbol.get_value()}")
+                            
+                            # Evaluate the expression
+                            print("\nEvaluating expression...")
+                            value = self._evaluate_expression(expr_node)
+                            print(f"Expression evaluation result: {value}")
+                            
+                            if value is not None:
+                                # Handle different assignment operators
+                                if operator_node.value == "=":
+                                    symbol.set_value(value)
+                                elif operator_node.value == "+=":
+                                    symbol.set_value((symbol.get_value() or 0) + value)
+                                elif operator_node.value == "-=":
+                                    symbol.set_value((symbol.get_value() or 0) - value)
+                                elif operator_node.value == "*=":
+                                    symbol.set_value((symbol.get_value() or 0) * value)
+                                elif operator_node.value == "/=":
+                                    if value == 0:
+                                        self.errors.append(SemanticError(
+                                            code="DIVISION_BY_ZERO",
+                                            message="Division by zero in assignment",
+                                            line=getattr(expr_node, 'line_number', None)
+                                        ))
+                                    else:
+                                        symbol.set_value((symbol.get_value() or 0) / value)
+                                elif operator_node.value == "%=":
+                                    if value == 0:
+                                        self.errors.append(SemanticError(
+                                            code="DIVISION_BY_ZERO",
+                                            message="Modulo by zero in assignment",
+                                            line=getattr(expr_node, 'line_number', None)
+                                        ))
+                                    else:
+                                        symbol.set_value((symbol.get_value() or 0) % value)
+                                print(f"Updated symbol value: {symbol.get_value()}")
+                            else:
+                                print(f"\nWARNING: Expression evaluation returned None for {var_name}")
+                                print("Expression node structure:")
+                                self._print_node_structure(expr_node)
+                                print("\nCurrent scope symbols:")
+                                self._print_scope_symbols()
         
         # Continue with generic visit to process other types of statements
         self.generic_visit(node)
     
     def visit_serve_statement(self, node, parent=None):
         """Handle the 'serve' statement (function call)"""
-        print("\n=== Debug: Processing serve statement ===")
+        print("\n" + "="*50)
+        print("DEBUG: Processing serve statement")
+        print("="*50)
         
         # If we have a parent node, use it
-        if parent and hasattr(parent, 'children') and len(parent.children) >= 6:
+        if parent and hasattr(parent, 'children') and len(parent.children) >= 3:
             statement_node = parent
+            print("Using parent node for statement")
         else:
             # Otherwise, look for the statement node in the current node's children
             if hasattr(node, 'children') and node.children:
                 for child in node.children:
                     if hasattr(child, 'value') and child.value == "<statement>":
                         statement_node = child
+                        print("Found statement node in children")
                         break
                 else:
                     print("No statement node found")
@@ -562,49 +661,70 @@ class SemanticAnalyzer:
             return
             
         arg_node = statement_node.children[2]
-        print(f"Argument node: {arg_node.value if hasattr(arg_node, 'value') else 'No value'}")
+        print(f"\nArgument node: {arg_node.value if hasattr(arg_node, 'value') else 'No value'}")
+        print(f"Argument node type: {arg_node.node_type if hasattr(arg_node, 'node_type') else 'No type'}")
         
-        # Check if this is a function call
+        # Handle string concatenation
+        result = ""
+        
+        # Process the initial value3
         if hasattr(arg_node, 'children') and arg_node.children:
-            if arg_node.children[0].node_type == "id":
-                # This is a function call
-                func_name = arg_node.children[0].value
-                print(f"Found function call: {func_name}")
+            initial_node = arg_node.children[0]
+            if hasattr(initial_node, 'children') and initial_node.children:
+                first_value = initial_node.children[0]
+                print(f"\nProcessing initial value3")
+                print(f"First value node: {first_value.value if hasattr(first_value, 'value') else 'No value'}")
+                print(f"First value type: {first_value.node_type if hasattr(first_value, 'node_type') else 'No type'}")
                 
-                # Look up the function in the symbol table
-                func_symbol = self.global_scope.lookup(func_name)
-                if func_symbol and func_symbol.type == "function":
-                    # Execute the function and get its output
-                    function_output = self._evaluate_function_call(func_name)
-                    if function_output:
-                        # Add the function's output to our output buffer
-                        print(f"Adding function output to buffer: {function_output}")
-                        self.output_buffer.extend(function_output)
+                if hasattr(first_value, 'node_type'):
+                    if first_value.node_type == "pastaliterals":
+                        result = first_value.value.strip('"')
+                        print(f"Found string literal: {result}")
+                    elif first_value.node_type == "id":
+                        symbol = self.current_scope.lookup(first_value.value)
+                        if symbol:
+                            print(f"Found symbol: {symbol}")
+                            result = str(symbol.get_value() if hasattr(symbol, 'get_value') else "")
+                            print(f"Symbol value: {result}")
+        
+        # Process any serve_tail concatenations
+        if len(statement_node.children) > 3:
+            serve_tail = statement_node.children[3]
+            print("\nProcessing serve_tail")
+            while hasattr(serve_tail, 'children') and serve_tail.children:
+                if serve_tail.children[0].value == "+":
+                    print("Found concatenation operator")
+                    # Get the next value3
+                    next_value_node = serve_tail.children[1]
+                    if hasattr(next_value_node, 'children') and next_value_node.children:
+                        next_value = next_value_node.children[0]
+                        print(f"\nNext value node: {next_value.value if hasattr(next_value, 'value') else 'No value'}")
+                        print(f"Next value type: {next_value.node_type if hasattr(next_value, 'node_type') else 'No type'}")
+                        
+                        if hasattr(next_value, 'node_type'):
+                            if next_value.node_type == "pastaliterals":
+                                result += next_value.value.strip('"')
+                                print(f"Concatenated string literal: {result}")
+                            elif next_value.node_type == "id":
+                                symbol = self.current_scope.lookup(next_value.value)
+                                if symbol:
+                                    print(f"Found symbol for concatenation: {symbol}")
+                                    result += str(symbol.get_value() if hasattr(symbol, 'get_value') else "")
+                                    print(f"Concatenated result: {result}")
+                    
+                    # Move to next serve_tail if exists
+                    if len(serve_tail.children) > 2:
+                        serve_tail = serve_tail.children[2]
+                        print("Moving to next serve_tail")
                     else:
-                        print(f"No output from function {func_name}")
+                        print("No more serve_tail to process")
+                        break
                 else:
-                    print(f"Function {func_name} not found in symbol table")
-                    self.errors.append(SemanticError(
-                        code="UNDECLARED_FUNCTION",
-                        message=f"Function '{func_name}' is not declared",
-                        identifier=func_name
-                    ))
-            else:
-                # Handle literals3 node for string literals
-                literals3_node = arg_node.children[0]
-                if hasattr(literals3_node, 'children') and literals3_node.children:
-                    string_node = literals3_node.children[0]
-                    if hasattr(string_node, 'node_type') and string_node.node_type == "pastaliterals":
-                        # Add the string literal to the output buffer
-                        value = string_node.value.strip('"')
-                        print(f"Adding string literal to buffer: {value}")
-                        self.output_buffer.append(value)
-        else:
-            # Handle direct string literals
-            if hasattr(arg_node, 'node_type') and arg_node.node_type == "pastaliterals":
-                value = arg_node.value.strip('"')
-                print(f"Adding direct string literal to buffer: {value}")
-                self.output_buffer.append(value)
+                    break
+        
+        print(f"\nFinal concatenated result: {result}")
+        if result:  # Only add non-empty results
+            self.output_buffer.append(result)
 
     def _evaluate_function_call(self, func_name):
         """Evaluate a function call and return its output"""
@@ -662,9 +782,6 @@ class SemanticAnalyzer:
                     print("Processing function body...")
                     for stmt in child.children:
                         if hasattr(stmt, 'value') and stmt.value == "<statement>":
-                            # Skip if we're in semantic analysis mode
-                            if hasattr(self, '_in_semantic_analysis') and self._in_semantic_analysis:
-                                continue
                             self.visit(stmt)
             
             # Get the function's output
@@ -808,3 +925,171 @@ class SemanticAnalyzer:
                             identifier=name,
                             is_warning=True
                         ))
+
+    def _evaluate_expression(self, node):
+        if not node:
+            return None
+            
+        print("\n" + "="*50)
+        print("DEBUG: Starting expression evaluation")
+        print("="*50)
+        
+        # Handle direct literals
+        if not hasattr(node, 'children') or not node.children:
+            if hasattr(node, 'node_type'):
+                if node.node_type == "pinchliterals":
+                    try:
+                        value = int(node.value)
+                        print(f"Direct pinch literal value: {value}")
+                        return value
+                    except ValueError:
+                        print(f"Invalid pinch literal: {node.value}")
+                        return None
+                elif node.node_type == "skimliterals":
+                    try:
+                        value = float(node.value)
+                        print(f"Direct skim literal value: {value}")
+                        return value
+                    except ValueError:
+                        print(f"Invalid skim literal: {node.value}")
+                        return None
+                elif node.node_type == "id":
+                    symbol = self.current_scope.lookup(node.value)
+                    if symbol:
+                        print(f"Found symbol value: {symbol.get_value()}")
+                        return symbol.get_value()
+                    else:
+                        print(f"Symbol not found: {node.value}")
+                        return None
+            return None
+        
+        # Handle expression nodes
+        if node.value == "<expression>":
+            if len(node.children) >= 2:
+                operand = node.children[0]  # First child is operand
+                tail = node.children[1]     # Second child is expression_tail
+                
+                # Evaluate the first operand
+                left_value = self._evaluate_operand(operand)
+                print(f"Left operand value: {left_value}")
+                
+                # If there's an operator and second operand in the tail
+                if tail.value == "<expression_tail>" and tail.children:
+                    operator = tail.children[0]
+                    right_operand = tail.children[1]
+                    
+                    # Evaluate the second operand
+                    right_value = self._evaluate_operand(right_operand)
+                    print(f"Right operand value: {right_value}")
+                    
+                    if left_value is not None and right_value is not None:
+                        if operator.value == "+":
+                            result = left_value + right_value
+                            print(f"Addition result: {result}")
+                            return result
+                        elif operator.value == "-":
+                            result = left_value - right_value
+                            print(f"Subtraction result: {result}")
+                            return result
+                        elif operator.value == "*":
+                            result = left_value * right_value
+                            print(f"Multiplication result: {result}")
+                            return result
+                        elif operator.value == "/":
+                            if right_value == 0:
+                                print("Division by zero error")
+                                return None
+                            result = left_value / right_value
+                            print(f"Division result: {result}")
+                            return result
+                        elif operator.value == "%":
+                            if right_value == 0:
+                                print("Modulo by zero error")
+                                return None
+                            result = left_value % right_value
+                            print(f"Modulo result: {result}")
+                            return result
+                else:
+                    # If no operator, just return the left value
+                    return left_value
+        
+        # Handle single operand
+        elif len(node.children) == 1:
+            operand = node.children[0]
+            return self._evaluate_operand(operand)
+            
+        return None
+
+    def _evaluate_operand(self, node):
+        if not node:
+            return None
+            
+        print(f"\nEvaluating operand: {node.value if hasattr(node, 'value') else 'No value'}")
+        print(f"Operand type: {node.node_type if hasattr(node, 'node_type') else 'No type'}")
+        
+        # Handle direct node types
+        if hasattr(node, 'node_type'):
+            if node.node_type == "id":
+                # Look up the symbol
+                symbol = self.current_scope.lookup(node.value)
+                if symbol:
+                    print(f"Found symbol value: {symbol.value}")
+                    return symbol.value
+                else:
+                    print(f"Symbol not found: {node.value}")
+                    return None
+            elif node.node_type == "pinchliterals":
+                try:
+                    value = int(node.value)
+                    print(f"Pinch literal value: {value}")
+                    return value
+                except ValueError:
+                    print(f"Invalid pinch literal: {node.value}")
+                    return None
+            elif node.node_type == "skimliterals":
+                try:
+                    value = float(node.value)
+                    print(f"Skim literal value: {value}")
+                    return value
+                except ValueError:
+                    print(f"Invalid skim literal: {node.value}")
+                    return None
+        
+        # Handle different node values
+        if hasattr(node, 'value'):
+            if node.value == "<value>":
+                if hasattr(node, 'children') and node.children:
+                    first_child = node.children[0]
+                    if hasattr(first_child, 'node_type'):
+                        if first_child.node_type == "id":
+                            symbol = self.current_scope.lookup(first_child.value)
+                            if symbol:
+                                print(f"Found symbol value through value node: {symbol.value}")
+                                return symbol.value
+                            else:
+                                print(f"Symbol not found through value node: {first_child.value}")
+                                return None
+                        elif first_child.node_type in ["pinchliterals", "skimliterals"]:
+                            return self._evaluate_operand(first_child)
+            elif node.value == "<expression_operand>":
+                if hasattr(node, 'children') and node.children:
+                    return self._evaluate_operand(node.children[0])
+        
+        print(f"Unknown operand type: {node.node_type if hasattr(node, 'node_type') else 'No type'}")
+        return None
+
+    def _print_scope_symbols(self):
+        """Helper method to print all symbols in current scope"""
+        print("\nCurrent scope symbols:")
+        for name, symbol in self.current_scope.symbols.items():
+            print(f"  {name}: {symbol.value} (type: {symbol.type})")
+    
+    def _print_node_structure(self, node, level=0):
+        """Helper method to print the structure of a node"""
+        indent = "  " * level
+        print(f"{indent}Node: {node.value if hasattr(node, 'value') else 'No value'}")
+        print(f"{indent}Type: {node.node_type if hasattr(node, 'node_type') else 'No type'}")
+        if hasattr(node, 'children'):
+            print(f"{indent}Children:")
+            for child in node.children:
+                self._print_node_structure(child, level + 1)

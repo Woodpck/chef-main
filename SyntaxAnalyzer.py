@@ -519,7 +519,22 @@ class LL1Parser:
             if marker[1] == expected_marker:
                 self.node_stack.pop()
     def _prune_lambda_nodes(self, node):
-        pass
+        """Prune λ nodes from the AST."""
+        if not hasattr(node, 'children'):
+            return
+        
+        # Process children first
+        for child in node.children[:]:
+            self._prune_lambda_nodes(child)
+        
+        # Remove λ nodes
+        node.children = [child for child in node.children if child.value != 'λ']
+        
+        # If node has only one child and is not a terminal, promote the child
+        if len(node.children) == 1 and not hasattr(node.children[0], 'node_type'):
+            child = node.children[0]
+            node.value = child.value
+            node.children = child.children
 
     def _process_terminal(self, current_line):
         """Process terminal symbols"""
