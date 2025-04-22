@@ -354,5 +354,19 @@
             updateLineNumbers();
         });
     </script>
+    <script>
+        function checkNode() {
+            fetch("/check-node")
+                .then(res => res.json())
+                .then(data => {
+                    if (data.trigger_prompt) {
+                        const value = prompt("Enter value:");
+                        document.getElementById("output").innerText = "You entered: " + value;
+                    } else {
+                        document.getElementById("output").innerText = "No prompt needed.";
+                    }
+                });
+        }
+    </script>
 </body>
 </html>

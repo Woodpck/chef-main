@@ -26,12 +26,6 @@ cfg = {
  	"<data_type2>": [["pinch"],
                  	["skim"],
                  	["pasta"]],
-  
-	"<dec_or_init>": [["=", "<literals>", "<next_dec_or_init>"],
-                   	["<next_dec_or_init>"]],
- 
-	"<next_dec_or_init>": [[",", "id", "<dec_or_init>"],
-                        ["λ"]],
  
 	"<literals>": [["pinchliterals"],
                 	["skimliterals"],

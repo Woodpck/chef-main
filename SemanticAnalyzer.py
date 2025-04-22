@@ -161,6 +161,8 @@ class SemanticAnalyzer:
                 self.check_id_usage(node)
             elif node.value == "serve":
                 self.visit_serve_statement(node, parent)
+            elif node.value == "make":
+                self.visit_make_statement(node, parent)
             self.generic_visit(node)
 
     def generic_visit(self, node):
@@ -870,7 +872,7 @@ class SemanticAnalyzer:
         if len(statement_node.children) < 3:
             print("Statement node has insufficient children")
             return
-            
+
         arg_node = statement_node.children[2]
         print(f"\nArgument node: {arg_node.value if hasattr(arg_node, 'value') else 'No value'}")
         print(f"Argument node type: {arg_node.node_type if hasattr(arg_node, 'node_type') else 'No type'}")
@@ -881,6 +883,7 @@ class SemanticAnalyzer:
         # Process the initial value3
         if hasattr(arg_node, 'children') and arg_node.children:
             initial_node = arg_node.children[0]
+            #are you fucking retarded????? why would you fucking include the ID checking here ???? it doesn't have childrennnnn????????????
             if hasattr(initial_node, 'children') and initial_node.children:
                 first_value = initial_node.children[0]
                 print(f"\nProcessing initial value3")
@@ -891,14 +894,14 @@ class SemanticAnalyzer:
                     if first_value.node_type == "pastaliterals":
                         result = first_value.value.strip('"')
                         print(f"Found string literal: {result}")
-                    elif first_value.node_type == "id":
-                        # Use enhanced lookup
-                        symbol = self.lookup_symbol(first_value.value)
-                        if symbol:
-                            print(f"Found symbol: {symbol}")
-                            result = str(symbol.get_value() if hasattr(symbol, 'get_value') else "")
-                            print(f"Symbol value: {result}")
-        
+            elif initial_node.node_type == 'id':
+                print(f"This is the fucking ID shi, they said to enhance this shi, it doesn't even work!")
+                symbol = self.lookup_symbol(initial_node.value)
+                if symbol:
+                    print(f"Found symbol: {symbol}")
+                    result = str(symbol.get_value() if hasattr(symbol, 'get_value') else "")
+            else:
+                print("acts as a fallback to do some shit[serve]")
         # Process any serve_tail concatenations
         if len(statement_node.children) > 3:
             serve_tail = statement_node.children[3]
@@ -913,18 +916,19 @@ class SemanticAnalyzer:
                         print(f"\nNext value node: {next_value.value if hasattr(next_value, 'value') else 'No value'}")
                         print(f"Next value type: {next_value.node_type if hasattr(next_value, 'node_type') else 'No type'}")
                         
-                        if hasattr(next_value, 'node_type'):
-                            if next_value.node_type == "pastaliterals":
-                                result += next_value.value.strip('"')
+                        if hasattr(next_value, 'children') and next_value.children:
+                            add_node = next_value.children[0]
+                            if add_node.node_type == "pastaliterals":
+                                result += add_node.value.strip('"')
                                 print(f"Concatenated string literal: {result}")
-                            elif next_value.node_type == "id":
-                                # Use enhanced lookup
-                                symbol = self.lookup_symbol(next_value.value)
-                                if symbol:
-                                    print(f"Found symbol for concatenation: {symbol}")
-                                    result += str(symbol.get_value() if hasattr(symbol, 'get_value') else "")
-                                    print(f"Concatenated result: {result}")
-                    
+                            else:
+                                print("Hello World!")
+                        elif next_value.node_type == "id":
+                            symbol = self.lookup_symbol(next_value.value)
+                            if symbol:
+                                print(f"Found symbol for concatenation: {symbol}")
+                                result += str(symbol.get_value() if hasattr(symbol, 'get_value') else "")
+                                print(f"Concatenated result: {result}")
                     # Move to next serve_tail if exists
                     if len(serve_tail.children) > 2:
                         serve_tail = serve_tail.children[2]
@@ -933,11 +937,55 @@ class SemanticAnalyzer:
                         print("No more serve_tail to process")
                         break
                 else:
+                    print("hi")
                     break
         
         print(f"\nFinal concatenated result: {result}")
         if result:  # Only add non-empty results
             self.output_buffer.append(result)
+
+    def visit_make_statement(self, node, parent=None):
+        """Handle the 'serve' statement (function call)"""
+        print("\n" + "=" * 50)
+        print("DEBUG: Processing make statement")
+        print("=" * 50)
+        print(f"Current scope: {self.current_scope.debugName}")
+
+        # If we have a parent node, use it
+        if parent and hasattr(parent, 'children') and len(parent.children) >= 3:
+            statement_node = parent
+            print("Using parent node for statement")
+        else:
+            # Otherwise, look for the statement node in the current node's children
+            if hasattr(node, 'children') and node.children:
+                for child in node.children:
+                    if hasattr(child, 'value') and child.value == "<statement>":
+                        statement_node = child
+                        print("Found statement node in children")
+                        break
+                else:
+                    print("No statement node found")
+                    return
+            else:
+                print("No children in node")
+                return
+
+        # The argument should be in the third child (index 2)
+        if len(statement_node.children) < 3:
+            print("Statement node has insufficient children")
+            return
+
+        arg_node = statement_node.children[2]
+        print(f"\nArgument node: {arg_node.value if hasattr(arg_node, 'value') else 'No value'}")
+        print(f"Argument node type: {arg_node.node_type if hasattr(arg_node, 'node_type') else 'No type'}")
+
+        if arg_node.node_type == 'id':
+            """ask for input"""
+            val = int(input("ask for input: "))
+            self.lookup_symbol(arg_node.value).value = val
+            print(self.lookup_symbol(arg_node.value))
+            self.output_buffer.append("input: " + str(val) + "")
+
 
     def _evaluate_function_call(self, func_name):
         """Evaluate a function call and return its output"""
