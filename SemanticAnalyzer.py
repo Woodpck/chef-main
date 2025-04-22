@@ -149,10 +149,6 @@ class SemanticAnalyzer:
         if not hasattr(node, 'value'):
             return
             
-        # Print node info for debugging
-        if hasattr(node, 'value'):
-            print(f"Visiting node: {node.value} in scope {self.current_scope.debugName}")
-            
         # If the node label is a non-terminal (e.g., "<local_declarations>") then try to call its visitor.
         if isinstance(node.value, str) and node.value.startswith('<') and node.value.endswith('>'):
             method_name = "visit_" + node.value.strip('<>').replace('-', '_')
@@ -398,64 +394,115 @@ class SemanticAnalyzer:
         # Get the variable type
         data_type_node = node.children[0].children[0]
         var_type = data_type_node.value
+        print(f"Processing declaration with type: {var_type}")
 
         # Process first declaration
         id_node = node.children[1]
         var_name = id_node.value
         line_num = getattr(id_node, 'line_number', -1)
+        print(f"Processing first variable: {var_name}")
 
         try:
-            # Create symbol and add it to the current scope
+            # Dictionary to hold all variables in this declaration
+            variables_in_declaration = {}
+            
+            # Create symbol and add it to the current scope for the first variable
             symbol = Symbol(var_name, var_type)
             print(f"Adding symbol {var_name} to scope {self.current_scope.debugName}")
             self.current_scope.add(var_name, symbol)
+            variables_in_declaration[var_name] = symbol
             
             # Process current declaration for initialization
-            dec_or_init = node.children[2]  # <dec_or_init>
-            if dec_or_init.children and dec_or_init.children[0].value == "=":
-                # Handle initialization
-                literal_node = dec_or_init.children[1]
-                
-                # Try to extract literal value directly first
-                value = self._extract_literal_value(literal_node)
-                
-                if value is not None:
-                    symbol.set_value(value)
-                    print(f"Set symbol {var_name} value directly: {value}")
-                else:
-                    # If direct extraction failed, use the expression evaluator
-                    value = self._evaluate_expression(literal_node)
+            if len(node.children) > 2:
+                dec_or_init = node.children[2]  # <dec_or_init>
+                if dec_or_init.children and dec_or_init.children[0].value == "=":
+                    # Handle initialization
+                    literal_node = dec_or_init.children[1]
+                    
+                    # Try to extract literal value directly first
+                    value = self._extract_literal_value(literal_node)
+                    
                     if value is not None:
                         symbol.set_value(value)
-                        print(f"Set symbol {var_name} value after evaluation: {value}")
+                        print(f"Set symbol {var_name} value directly: {value}")
+                    else:
+                        # If direct extraction failed, use the expression evaluator
+                        value = self._evaluate_expression(literal_node)
+                        if value is not None:
+                            symbol.set_value(value)
+                            print(f"Set symbol {var_name} value after evaluation: {value}")
+                    
+                    # Check type compatibility
+                    self._check_initialization(var_name, var_type, literal_node, line_num)
                 
-                # Check type compatibility
-                self._check_initialization(var_name, var_type, literal_node, line_num)
-
-            # Process additional declarations
-            current_node = dec_or_init
-            while current_node.children and len(current_node.children) > 1:
-                if current_node.children[0].value == ",":
-                    next_id = current_node.children[1].value
-                    next_symbol = Symbol(next_id, var_type)
-                    self.current_scope.add(next_id, next_symbol)
+                # Process additional declarations (variables after commas)
+                print(f"\nProcessing additional variables for {var_type} declaration")
+                
+                # Helper function to find and process all variables in the declaration
+                def find_additional_variables(current_node, depth=0):
+                    indent = "  " * depth
+                    print(f"{indent}Exploring node: {current_node.value if hasattr(current_node, 'value') else 'No value'}")
                     
-                    # Check for initialization in the next part
-                    if len(current_node.children) > 2:
-                        next_dec = current_node.children[2]  # Next <dec_or_init>
-                        if next_dec.children and next_dec.children[0].value == "=":
-                            literal_node = next_dec.children[1]
-                            value = self._evaluate_expression(literal_node)
-                            if value is not None:
-                                next_symbol.set_value(value)
-                                print(f"Initialized {next_id} with value: {value}")
-                            self._check_initialization(next_id, var_type, literal_node, line_num)
+                    # Skip if not a node with children or no children
+                    if not hasattr(current_node, 'children') or not current_node.children:
+                        return
                     
-                    current_node = current_node.children[2]
-                else:
-                    break
+                    # Check if this is a comma, indicating another variable
+                    if current_node.children[0].value == ",":
+                        if len(current_node.children) > 1:
+                            # The variable is the second child after the comma
+                            var_id_node = current_node.children[1]
+                            next_id = var_id_node.value
+                            print(f"{indent}Found additional variable: {next_id}")
+                            
+                            # Create and register the variable
+                            next_symbol = Symbol(next_id, var_type)
+                            self.current_scope.add(next_id, next_symbol)
+                            variables_in_declaration[next_id] = next_symbol
+                            print(f"{indent}Registered {next_id} in symbol table")
+                            
+                            # Check for initialization
+                            if len(current_node.children) > 2:
+                                next_dec = current_node.children[2]
+                                if next_dec.children and next_dec.children[0].value == "=":
+                                    next_literal_node = next_dec.children[1]
+                                    
+                                    # Handle initialization
+                                    print(f"{indent}Processing initialization for {next_id}")
+                                    next_value = self._extract_literal_value(next_literal_node)
+                                    if next_value is not None:
+                                        next_symbol.set_value(next_value)
+                                        print(f"{indent}Set {next_id} value directly: {next_value}")
+                                    else:
+                                        next_value = self._evaluate_expression(next_literal_node)
+                                        if next_value is not None:
+                                            next_symbol.set_value(next_value)
+                                            print(f"{indent}Set {next_id} value after evaluation: {next_value}")
+                                    
+                                    # Check type compatibility
+                                    self._check_initialization(next_id, var_type, next_literal_node, line_num)
+                                
+                                # Check for more variables (recursive search)
+                                find_additional_variables(next_dec, depth + 1)
+                    
+                    # Even if not a comma node, still check all children for commas
+                    for child in current_node.children:
+                        if hasattr(child, 'children') and child.children:
+                            if child.children and child.children[0].value == ",":
+                                find_additional_variables(child, depth + 1)
+                
+                # Start exploring from the first dec_or_init node
+                find_additional_variables(dec_or_init)
+                
+                # Print final state for debug purposes
+                print("\nFinal variable state after processing multi-variable declaration:")
+                for name, sym in variables_in_declaration.items():
+                    val = sym.get_value()
+                    print(f"  {name}: {val} (type: {sym.type})")
+                
         except SemanticError as e:
             self.errors.append(e)
+            print(f"Error processing declaration: {e}")
 
     def _check_initialization(self, var_name, var_type, expr_node, line_num):
         """Helper method to check initialization type compatibility"""
@@ -590,19 +637,22 @@ class SemanticAnalyzer:
         print(f"Looking up symbol: {name} in current scope: {self.current_scope.debugName}")
         
         # First try the current scope
-        symbol = self.current_scope.lookup(name, mark_used)
-        if symbol:
+        if name in self.current_scope.symbols:
+            symbol = self.current_scope.symbols[name]
+            if mark_used:
+                symbol.is_used = True
+            print(f"Found symbol {name} in current scope {self.current_scope.debugName}")
             return symbol
             
-        # If not found and this isn't the global scope, try the global scope directly
-        if self.current_scope != self.global_scope:
-            print(f"Trying global scope directly for: {name}")
-            symbol = self.global_scope.lookup(name, mark_used)
-            if symbol:
-                return symbol
+        # If not found and there's a parent, try the parent scope
+        if self.current_scope.parent:
+            print(f"Symbol {name} not found in {self.current_scope.debugName}, checking parent")
+            parent_result = self.current_scope.parent.lookup(name, mark_used)
+            if parent_result:
+                return parent_result
                 
         # If still not found, search all symbol tables
-        print(f"Searching all symbol tables for: {name}")
+        print(f"Symbol {name} not found in direct parent chain, searching all tables")
         for table in self.symbol_tables:
             if table != self.current_scope:  # Skip current scope as we already checked it
                 if name in table.symbols:
