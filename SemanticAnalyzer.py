@@ -125,8 +125,19 @@ class SemanticAnalyzer:
         # Store the parse tree for function evaluation
         self.parse_tree = parse_tree
         
+        # Create a main program scope (should be a child of global scope)
+        main_scope = SymbolTable(debugName="main_program", parent=self.global_scope)
+        self.symbol_tables.append(main_scope)
+        
+        # Set current scope to main program
+        old_scope = self.current_scope
+        self.current_scope = main_scope
+        
         # Visit the parse tree
         self.visit(parse_tree)
+        
+        # Restore the original scope
+        self.current_scope = old_scope
         
         # Only check for unused variables in local scope
         self._check_unused_local_variables()
@@ -134,6 +145,14 @@ class SemanticAnalyzer:
         return self.errors
 
     def visit(self, node, parent=None):
+        # If the node has no value, return
+        if not hasattr(node, 'value'):
+            return
+            
+        # Print node info for debugging
+        if hasattr(node, 'value'):
+            print(f"Visiting node: {node.value} in scope {self.current_scope.debugName}")
+            
         # If the node label is a non-terminal (e.g., "<local_declarations>") then try to call its visitor.
         if isinstance(node.value, str) and node.value.startswith('<') and node.value.endswith('>'):
             method_name = "visit_" + node.value.strip('<>').replace('-', '_')
@@ -335,20 +354,41 @@ class SemanticAnalyzer:
         if len(node.children) > 2 and node.children[2].value == "<dec_or_init>":
             init_node = node.children[2]
             if init_node.children and init_node.children[0].value == "=":
-                expr_node = init_node.children[1]
-                value = self._evaluate_expression(expr_node)
+                literals_node = init_node.children[1]
+                print(f"Literals node: {literals_node.value if hasattr(literals_node, 'value') else 'No value'}")
+                
+                # Extract the literal value
+                value = None
+                if literals_node.value == "<literals>":
+                    if literals_node.children and len(literals_node.children) > 0:
+                        literal_child = literals_node.children[0]
+                        if hasattr(literal_child, 'node_type'):
+                            if literal_child.node_type == "pinchliterals":
+                                try:
+                                    value = int(literal_child.value)
+                                    print(f"Extracted literal pinch value: {value}")
+                                except ValueError:
+                                    print(f"Invalid pinch literal: {literal_child.value}")
+                            elif literal_child.node_type == "skimliterals":
+                                try:
+                                    value = float(literal_child.value)
+                                    print(f"Extracted literal skim value: {value}")
+                                except ValueError:
+                                    print(f"Invalid skim literal: {literal_child.value}")
+                            elif literal_child.node_type == "pastaliterals":
+                                value = literal_child.value.strip('"')
+                                print(f"Extracted literal pasta value: {value}")
+                
                 if value is not None:
                     symbol.set_value(value)
                     print(f"Initialized {var_name} with value: {value}")
+                else:
+                    # If direct extraction failed, try the evaluator
+                    value = self._evaluate_expression(literals_node)
+                    if value is not None:
+                        symbol.set_value(value)
+                        print(f"Initialized {var_name} with evaluated value: {value}")
         
-        self.generic_visit(node)
-    
-    def visit_local_declarations(self, node):
-        # Determine whether this is an array declaration or a regular variable declaration.
-        if node.children and node.children[0].value == 'recipe':
-            self._handle_array_declaration(node)
-        else:
-            self._handle_regular_declaration(node)
         self.generic_visit(node)
 
     def _handle_regular_declaration(self, node):
@@ -365,21 +405,53 @@ class SemanticAnalyzer:
         line_num = getattr(id_node, 'line_number', -1)
 
         try:
-            self.current_scope.add(var_name, Symbol(var_name, var_type))
+            # Create symbol and add it to the current scope
+            symbol = Symbol(var_name, var_type)
+            print(f"Adding symbol {var_name} to scope {self.current_scope.debugName}")
+            self.current_scope.add(var_name, symbol)
+            
+            # Process current declaration for initialization
+            dec_or_init = node.children[2]  # <dec_or_init>
+            if dec_or_init.children and dec_or_init.children[0].value == "=":
+                # Handle initialization
+                literal_node = dec_or_init.children[1]
+                
+                # Try to extract literal value directly first
+                value = self._extract_literal_value(literal_node)
+                
+                if value is not None:
+                    symbol.set_value(value)
+                    print(f"Set symbol {var_name} value directly: {value}")
+                else:
+                    # If direct extraction failed, use the expression evaluator
+                    value = self._evaluate_expression(literal_node)
+                    if value is not None:
+                        symbol.set_value(value)
+                        print(f"Set symbol {var_name} value after evaluation: {value}")
+                
+                # Check type compatibility
+                self._check_initialization(var_name, var_type, literal_node, line_num)
 
             # Process additional declarations
-            current_node = node.children[2]  # <dec_or_init>
-            while current_node.children:
+            current_node = dec_or_init
+            while current_node.children and len(current_node.children) > 1:
                 if current_node.children[0].value == ",":
                     next_id = current_node.children[1].value
-                    self.current_scope.add(next_id, Symbol(next_id, var_type))
+                    next_symbol = Symbol(next_id, var_type)
+                    self.current_scope.add(next_id, next_symbol)
+                    
+                    # Check for initialization in the next part
+                    if len(current_node.children) > 2:
+                        next_dec = current_node.children[2]  # Next <dec_or_init>
+                        if next_dec.children and next_dec.children[0].value == "=":
+                            literal_node = next_dec.children[1]
+                            value = self._evaluate_expression(literal_node)
+                            if value is not None:
+                                next_symbol.set_value(value)
+                                print(f"Initialized {next_id} with value: {value}")
+                            self._check_initialization(next_id, var_type, literal_node, line_num)
+                    
                     current_node = current_node.children[2]
-                elif current_node.children[0].value == "=":
-                    # Handle initialization
-                    self._check_initialization(var_name, var_type,
-                                               current_node.children[1],
-                                               line_num)
-                    break
                 else:
                     break
         except SemanticError as e:
@@ -469,6 +541,79 @@ class SemanticAnalyzer:
                     identifier=var_name
                 ))
 
+    def visit_local_declarations(self, node):
+        print(f"\nProcessing local declaration in scope: {self.current_scope.debugName}")
+        
+        # Determine whether this is an array declaration or a regular variable declaration.
+        if node.children and node.children[0].value == 'recipe':
+            self._handle_array_declaration(node)
+        else:
+            self._handle_regular_declaration(node)
+            
+        self.generic_visit(node)
+    
+    def visit_local_dec(self, node):
+        print(f"\nProcessing local dec node in scope: {self.current_scope.debugName}")
+        # Just genericVisit as the individual local_declarations will handle the work
+        self.generic_visit(node)
+
+    def _extract_literal_value(self, node):
+        """Helper method to extract literal values from nodes"""
+        if node is None:
+            return None
+            
+        # Direct literal node
+        if hasattr(node, 'node_type'):
+            if node.node_type == "pinchliterals":
+                try:
+                    return int(node.value)
+                except ValueError:
+                    return None
+            elif node.node_type == "skimliterals":
+                try:
+                    return float(node.value)
+                except ValueError:
+                    return None
+            elif node.node_type == "pastaliterals":
+                return node.value.strip('"')
+        
+        # Node with children
+        if hasattr(node, 'value') and hasattr(node, 'children') and node.children:
+            # Handle literals node
+            if node.value == "<literals>" and len(node.children) > 0:
+                return self._extract_literal_value(node.children[0])
+        
+        return None
+
+    def lookup_symbol(self, name, mark_used=True):
+        """Enhanced symbol lookup that tries harder to find symbols in all scopes"""
+        print(f"Looking up symbol: {name} in current scope: {self.current_scope.debugName}")
+        
+        # First try the current scope
+        symbol = self.current_scope.lookup(name, mark_used)
+        if symbol:
+            return symbol
+            
+        # If not found and this isn't the global scope, try the global scope directly
+        if self.current_scope != self.global_scope:
+            print(f"Trying global scope directly for: {name}")
+            symbol = self.global_scope.lookup(name, mark_used)
+            if symbol:
+                return symbol
+                
+        # If still not found, search all symbol tables
+        print(f"Searching all symbol tables for: {name}")
+        for table in self.symbol_tables:
+            if table != self.current_scope:  # Skip current scope as we already checked it
+                if name in table.symbols:
+                    symbol = table.symbols[name]
+                    if mark_used:
+                        symbol.is_used = True
+                    print(f"Found symbol {name} in table {table.debugName}")
+                    return symbol
+        
+        print(f"Symbol {name} not found in any scope")
+        return None
 
     #-----------------------------------------------------------------
     # Function handling
@@ -563,17 +708,29 @@ class SemanticAnalyzer:
                     print(f"Statement_id_tail children: {[child.value if hasattr(child, 'value') else 'No value' for child in second_child.children]}")
                     
                     if second_child.children and len(second_child.children) >= 2:
+                        # Unwrap the real operator string
+                        raw_op = None
                         operator_node = second_child.children[0]
+                        
+                        # If it's an <assignment_operator> wrapper, grab its child token
+                        if operator_node.value == "<assignment_operator>" and operator_node.children:
+                            raw_op = operator_node.children[0].value
+                            print(f"Found wrapped operator: {raw_op}")
+                        # Otherwise maybe it was exposed directly
+                        elif operator_node.value in ["=", "+=", "-=", "*=", "/=", "%="]:
+                            raw_op = operator_node.value
+                            print(f"Found direct operator: {raw_op}")
+                        
                         expr_node = second_child.children[1]
                         
                         print(f"\nProcessing expression for {var_name}")
-                        print(f"Operator node: {operator_node.value if hasattr(operator_node, 'value') else 'No value'}")
+                        print(f"Operator: {raw_op}")
                         print(f"Expression node: {expr_node.value if hasattr(expr_node, 'value') else 'No value'}")
                         print(f"Expression node type: {expr_node.node_type if hasattr(expr_node, 'node_type') else 'No type'}")
                         print(f"Expression children: {[child.value if hasattr(child, 'value') else 'No value' for child in expr_node.children] if hasattr(expr_node, 'children') else 'No children'}")
                         
-                        if hasattr(operator_node, 'value') and operator_node.value in ["=", "+=", "-=", "*=", "/=", "%="]:
-                            print(f"\nFound assignment operator: {operator_node.value}")
+                        if raw_op in ["=", "+=", "-=", "*=", "/=", "%="]:
+                            print(f"\nFound assignment operator: {raw_op}")
                             
                             # Look up the symbol
                             symbol = self.current_scope.lookup(var_name)
@@ -588,20 +745,23 @@ class SemanticAnalyzer:
                             
                             # Evaluate the expression
                             print("\nEvaluating expression...")
+                            print(f"Expression node structure before evaluation:")
+                            self._print_node_structure(expr_node)
+                            
                             value = self._evaluate_expression(expr_node)
                             print(f"Expression evaluation result: {value}")
                             
                             if value is not None:
                                 # Handle different assignment operators
-                                if operator_node.value == "=":
+                                if raw_op == "=":
                                     symbol.set_value(value)
-                                elif operator_node.value == "+=":
+                                elif raw_op == "+=":
                                     symbol.set_value((symbol.get_value() or 0) + value)
-                                elif operator_node.value == "-=":
+                                elif raw_op == "-=":
                                     symbol.set_value((symbol.get_value() or 0) - value)
-                                elif operator_node.value == "*=":
+                                elif raw_op == "*=":
                                     symbol.set_value((symbol.get_value() or 0) * value)
-                                elif operator_node.value == "/=":
+                                elif raw_op == "/=":
                                     if value == 0:
                                         self.errors.append(SemanticError(
                                             code="DIVISION_BY_ZERO",
@@ -610,7 +770,7 @@ class SemanticAnalyzer:
                                         ))
                                     else:
                                         symbol.set_value((symbol.get_value() or 0) / value)
-                                elif operator_node.value == "%=":
+                                elif raw_op == "%=":
                                     if value == 0:
                                         self.errors.append(SemanticError(
                                             code="DIVISION_BY_ZERO",
@@ -629,12 +789,13 @@ class SemanticAnalyzer:
         
         # Continue with generic visit to process other types of statements
         self.generic_visit(node)
-    
+
     def visit_serve_statement(self, node, parent=None):
         """Handle the 'serve' statement (function call)"""
         print("\n" + "="*50)
         print("DEBUG: Processing serve statement")
         print("="*50)
+        print(f"Current scope: {self.current_scope.debugName}")
         
         # If we have a parent node, use it
         if parent and hasattr(parent, 'children') and len(parent.children) >= 3:
@@ -681,7 +842,8 @@ class SemanticAnalyzer:
                         result = first_value.value.strip('"')
                         print(f"Found string literal: {result}")
                     elif first_value.node_type == "id":
-                        symbol = self.current_scope.lookup(first_value.value)
+                        # Use enhanced lookup
+                        symbol = self.lookup_symbol(first_value.value)
                         if symbol:
                             print(f"Found symbol: {symbol}")
                             result = str(symbol.get_value() if hasattr(symbol, 'get_value') else "")
@@ -706,7 +868,8 @@ class SemanticAnalyzer:
                                 result += next_value.value.strip('"')
                                 print(f"Concatenated string literal: {result}")
                             elif next_value.node_type == "id":
-                                symbol = self.current_scope.lookup(next_value.value)
+                                # Use enhanced lookup
+                                symbol = self.lookup_symbol(next_value.value)
                                 if symbol:
                                     print(f"Found symbol for concatenation: {symbol}")
                                     result += str(symbol.get_value() if hasattr(symbol, 'get_value') else "")
@@ -933,6 +1096,12 @@ class SemanticAnalyzer:
         print("\n" + "="*50)
         print("DEBUG: Starting expression evaluation")
         print("="*50)
+        print(f"Evaluating node: {node.value if hasattr(node, 'value') else 'No value'}")
+        print(f"Node type: {node.node_type if hasattr(node, 'node_type') else 'No type'}")
+        if hasattr(node, 'children'):
+            print(f"Children count: {len(node.children)}")
+            for i, child in enumerate(node.children[:3]):  # Show first 3 children for brevity
+                print(f"Child {i}: {child.value if hasattr(child, 'value') else 'No value'}")
         
         # Handle direct literals
         if not hasattr(node, 'children') or not node.children:
@@ -953,72 +1122,282 @@ class SemanticAnalyzer:
                     except ValueError:
                         print(f"Invalid skim literal: {node.value}")
                         return None
+                elif node.node_type == "pastaliterals":
+                    value = node.value.strip('"')
+                    print(f"Direct pasta literal value: {value}")
+                    return value
                 elif node.node_type == "id":
-                    symbol = self.current_scope.lookup(node.value)
+                    # Enhanced variable lookup that fixes scope issues
+                    var_name = node.value
+                    # Try all variable lookup strategies to ensure we find the variable
+                    symbol = None
+                    
+                    # First, direct lookup in current scope
+                    if hasattr(self, 'current_scope') and self.current_scope:
+                        symbol = self.current_scope.lookup(var_name, True)
+                    
+                    # If not found, try global scope
+                    if not symbol and hasattr(self, 'global_scope') and self.global_scope:
+                        symbol = self.global_scope.lookup(var_name, True)
+                    
+                    # Finally, search all symbol tables
+                    if not symbol and hasattr(self, 'symbol_tables'):
+                        for table in self.symbol_tables:
+                            if var_name in table.symbols:
+                                symbol = table.symbols[var_name]
+                                break
+                    
                     if symbol:
-                        print(f"Found symbol value: {symbol.get_value()}")
-                        return symbol.get_value()
+                        value = symbol.get_value()
+                        print(f"Found symbol {var_name} with value: {value}")
+                        return value
                     else:
-                        print(f"Symbol not found: {node.value}")
+                        print(f"Symbol not found: {var_name}")
                         return None
             return None
         
         # Handle expression nodes
         if node.value == "<expression>":
+            print("Processing <expression> node")
             if len(node.children) >= 2:
-                operand = node.children[0]  # First child is operand
-                tail = node.children[1]     # Second child is expression_tail
+                operand_node = node.children[0]  # First child is <expression_operand>
+                tail_node = node.children[1]     # Second child is <expression_tail>
                 
                 # Evaluate the first operand
-                left_value = self._evaluate_operand(operand)
+                left_value = self._evaluate_expression(operand_node)
                 print(f"Left operand value: {left_value}")
                 
-                # If there's an operator and second operand in the tail
-                if tail.value == "<expression_tail>" and tail.children:
-                    operator = tail.children[0]
-                    right_operand = tail.children[1]
-                    
-                    # Evaluate the second operand
-                    right_value = self._evaluate_operand(right_operand)
-                    print(f"Right operand value: {right_value}")
-                    
-                    if left_value is not None and right_value is not None:
-                        if operator.value == "+":
-                            result = left_value + right_value
-                            print(f"Addition result: {result}")
-                            return result
-                        elif operator.value == "-":
-                            result = left_value - right_value
-                            print(f"Subtraction result: {result}")
-                            return result
-                        elif operator.value == "*":
-                            result = left_value * right_value
-                            print(f"Multiplication result: {result}")
-                            return result
-                        elif operator.value == "/":
-                            if right_value == 0:
-                                print("Division by zero error")
-                                return None
-                            result = left_value / right_value
-                            print(f"Division result: {result}")
-                            return result
-                        elif operator.value == "%":
-                            if right_value == 0:
-                                print("Modulo by zero error")
-                                return None
-                            result = left_value % right_value
-                            print(f"Modulo result: {result}")
-                            return result
-                else:
-                    # If no operator, just return the left value
-                    return left_value
+                # Process any operations in the expression tail
+                if left_value is not None:
+                    result = self._process_expression_tail(tail_node, left_value)
+                    return result
+                return left_value
         
-        # Handle single operand
-        elif len(node.children) == 1:
-            operand = node.children[0]
-            return self._evaluate_operand(operand)
+        # Handle expression_operand nodes
+        elif node.value == "<expression_operand>":
+            print("Processing <expression_operand> node")
+            if node.children:
+                # Check if this is a parenthesized expression
+                if len(node.children) >= 3 and node.children[0].value == "(":
+                    print("Found parenthesized expression")
+                    # The actual expression is the second child (index 1)
+                    expr_node = node.children[1]
+                    value = self._evaluate_expression(expr_node)
+                    print(f"Parenthesized expression value: {value}")
+                    return value
+                else:
+                    # Regular operand, evaluate normally
+                    return self._evaluate_expression(node.children[0])
+        
+        # Handle value nodes
+        elif node.value == "<value>":
+            print("Processing <value> node")
+            if len(node.children) >= 1:
+                # First child could be an ID or a literal
+                first_child = node.children[0]
+                
+                # Special handling for parenthesized expressions
+                if hasattr(first_child, 'value') and first_child.value == "(":
+                    if len(node.children) >= 3:  # Should have "(", expr, ")"
+                        expr_node = node.children[1]
+                        value = self._evaluate_expression(expr_node)
+                        print(f"Parenthesized value: {value}")
+                        return value
+                
+                if hasattr(first_child, 'node_type') and first_child.node_type == "id":
+                    # Look up the variable
+                    var_name = first_child.value
+                    symbol = self.lookup_symbol(var_name)
+                    if symbol:
+                        print(f"Found variable {var_name} with value: {symbol.get_value()}")
+                        return symbol.get_value()
+                    else:
+                        print(f"Variable not found: {var_name}")
+                        return None
+                else:
+                    # For other types, evaluate the child
+                    return self._evaluate_expression(first_child)
+        
+        # Handle value_id_tail nodes
+        elif node.value == "<value_id_tail>":
+            print("Processing <value_id_tail> node")
+            # This node is usually empty for basic expressions, so just return None
+            return None
+        
+        # Handle literals and literals nodes
+        elif node.value == "<literals>" or (hasattr(node, 'node_type') and node.node_type in ["pinchliterals", "skimliterals", "pastaliterals"]):
+            print(f"Processing literals node: {node.value}")
+            if hasattr(node, 'node_type'):
+                if node.node_type == "pinchliterals":
+                    try:
+                        value = int(node.value)
+                        print(f"Parsed literal integer: {value}")
+                        return value
+                    except (ValueError, TypeError):
+                        pass
+                elif node.node_type == "skimliterals":
+                    try:
+                        value = float(node.value)
+                        print(f"Parsed literal float: {value}")
+                        return value
+                    except (ValueError, TypeError):
+                        pass
+                elif node.node_type == "pastaliterals":
+                    value = node.value.strip('"')
+                    print(f"Parsed literal string: {value}")
+                    return value
             
+            # For <literals> nodes, evaluate the first child
+            if node.value == "<literals>" and node.children:
+                return self._evaluate_expression(node.children[0])
+        
+        # Handle <arithmetic_exp> nodes 
+        elif node.value == "<arithmetic_exp>":
+            print("Processing <arithmetic_exp> node")
+            if len(node.children) >= 2:
+                left_node = node.children[0]
+                tail_node = node.children[1]
+                
+                left_value = self._evaluate_expression(left_node)
+                print(f"Arithmetic left value: {left_value}")
+                
+                if tail_node.value == "<arithmetic_tail>" and hasattr(tail_node, 'children') and tail_node.children:
+                    if tail_node.children[0].value != "λ":  # Make sure it's not empty
+                        # Extract the actual operator, similar to above
+                        operator_node = tail_node.children[0]
+                        actual_operator = None
+                        
+                        if operator_node.value == "<arithmetic_operator>" and operator_node.children:
+                            actual_operator = operator_node.children[0].value
+                            print(f"Extracted arithmetic operator: {actual_operator}")
+                        else:
+                            actual_operator = operator_node.value
+                            print(f"Direct arithmetic operator: {actual_operator}")
+                        
+                        right_node = tail_node.children[1]
+                        right_value = self._evaluate_expression(right_node)
+                        print(f"Arithmetic right value: {right_value}")
+                        
+                        if left_value is not None and right_value is not None and actual_operator:
+                            result = self._apply_operator(actual_operator, left_value, right_value)
+                            print(f"Arithmetic result: {result}")
+                            
+                            # Check for additional operations in the chain
+                            if len(tail_node.children) > 2:
+                                next_tail = tail_node.children[2]
+                                if next_tail.value == "<arithmetic_tail>" and next_tail.children and next_tail.children[0].value != "λ":
+                                    # Recursively process the next part using our current result as the left value
+                                    return self._process_arithmetic_tail(next_tail, result)
+                            
+                            return result
+                
+                # If no operator or evaluation failed, return left value
+                return left_value
+        
+        # Value nodes with IDs
+        elif node.value in ["<value2>", "<value3>"]:
+            print(f"Processing {node.value} node")
+            if node.children:
+                return self._evaluate_expression(node.children[0])
+        
+        # Catch-all for other node types: try first child
+        elif node.children and len(node.children) > 0:
+            print(f"Processing unrecognized node type: {node.value}, trying first child")
+            return self._evaluate_expression(node.children[0])
+        
+        print(f"Unable to evaluate expression node: {node.value}")
         return None
+
+    def _process_expression_tail(self, tail_node, left_value):
+        """Process an expression tail with possible chained operations."""
+        if not tail_node or not hasattr(tail_node, 'value') or tail_node.value != "<expression_tail>":
+            return left_value
+        
+        if not hasattr(tail_node, 'children') or not tail_node.children or tail_node.children[0].value == "λ":
+            # Empty tail, no operation to perform
+            return left_value
+        
+        # Get the operator - first child of expression_tail
+        operator_node = tail_node.children[0]
+        
+        # Extract the actual operator from <expression_operator> if needed
+        actual_operator = None
+        if operator_node.value == "<expression_operator>" and operator_node.children:
+            # The real operator is the first child of <expression_operator>
+            actual_operator = operator_node.children[0].value
+            print(f"Extracted operator from <expression_operator>: {actual_operator}")
+        else:
+            actual_operator = operator_node.value
+            print(f"Direct operator: {actual_operator}")
+        
+        # Get the right operand - second child of expression_tail
+        if len(tail_node.children) < 2:
+            return left_value  # No right operand
+        
+        right_operand_node = tail_node.children[1]
+        print(f"Right operand node: {right_operand_node.value}")
+        
+        # Evaluate the right operand
+        right_value = self._evaluate_expression(right_operand_node)
+        print(f"Right operand value: {right_value}")
+        
+        # Apply the operator using the actual operator value
+        if left_value is not None and right_value is not None and actual_operator:
+            result = self._apply_operator(actual_operator, left_value, right_value)
+            print(f"Expression result after operation {left_value} {actual_operator} {right_value} = {result}")
+            
+            # Check if there are more operations in the tail (e.g., for chained operations like a + b + c)
+            if len(tail_node.children) > 2:
+                next_tail = tail_node.children[2]
+                if next_tail.value == "<expression_tail>" and hasattr(next_tail, 'children') and next_tail.children and next_tail.children[0].value != "λ":
+                    # Recursively process the next operation with our current result as the left value
+                    print(f"Continuing to next operation in chain with result {result}")
+                    return self._process_expression_tail(next_tail, result)
+            
+            return result
+        
+        # If either value is None or the operator is invalid, return the left value
+        print(f"Cannot evaluate expression, left: {left_value}, right: {right_value}, op: {actual_operator}")
+        return left_value
+    
+    def _process_arithmetic_tail(self, tail_node, left_value):
+        """Similar to _process_expression_tail but for arithmetic tails."""
+        if not tail_node or not hasattr(tail_node, 'children') or not tail_node.children:
+            return left_value
+            
+        # Extract the actual operator
+        operator_node = tail_node.children[0]
+        actual_operator = None
+        
+        if operator_node.value == "<arithmetic_operator>" and operator_node.children:
+            actual_operator = operator_node.children[0].value
+            print(f"Extracted arithmetic operator: {actual_operator}")
+        else:
+            actual_operator = operator_node.value
+            print(f"Direct arithmetic operator: {actual_operator}")
+        
+        # Get the right operand
+        if len(tail_node.children) < 2:
+            return left_value
+            
+        right_node = tail_node.children[1]
+        right_value = self._evaluate_expression(right_node)
+        print(f"Arithmetic right value: {right_value}")
+        
+        # Apply the operator
+        if left_value is not None and right_value is not None and actual_operator:
+            result = self._apply_operator(actual_operator, left_value, right_value)
+            print(f"Arithmetic result: {result}")
+            
+            # Check for more operations
+            if len(tail_node.children) > 2:
+                next_tail = tail_node.children[2]
+                if next_tail.value == "<arithmetic_tail>" and next_tail.children and next_tail.children[0].value != "λ":
+                    return self._process_arithmetic_tail(next_tail, result)
+            
+            return result
+        
+        return left_value
 
     def _evaluate_operand(self, node):
         if not node:
@@ -1030,11 +1409,11 @@ class SemanticAnalyzer:
         # Handle direct node types
         if hasattr(node, 'node_type'):
             if node.node_type == "id":
-                # Look up the symbol
-                symbol = self.current_scope.lookup(node.value)
+                # Use enhanced lookup
+                symbol = self.lookup_symbol(node.value)
                 if symbol:
-                    print(f"Found symbol value: {symbol.value}")
-                    return symbol.value
+                    print(f"Found symbol value: {symbol.get_value()}")
+                    return symbol.get_value()
                 else:
                     print(f"Symbol not found: {node.value}")
                     return None
@@ -1054,28 +1433,70 @@ class SemanticAnalyzer:
                 except ValueError:
                     print(f"Invalid skim literal: {node.value}")
                     return None
+            elif node.node_type == "pastaliterals":
+                value = node.value.strip('"')
+                print(f"Pasta literal value: {value}")
+                return value
         
         # Handle different node values
-        if hasattr(node, 'value'):
-            if node.value == "<value>":
-                if hasattr(node, 'children') and node.children:
-                    first_child = node.children[0]
-                    if hasattr(first_child, 'node_type'):
-                        if first_child.node_type == "id":
-                            symbol = self.current_scope.lookup(first_child.value)
-                            if symbol:
-                                print(f"Found symbol value through value node: {symbol.value}")
-                                return symbol.value
-                            else:
-                                print(f"Symbol not found through value node: {first_child.value}")
-                                return None
-                        elif first_child.node_type in ["pinchliterals", "skimliterals"]:
-                            return self._evaluate_operand(first_child)
-            elif node.value == "<expression_operand>":
-                if hasattr(node, 'children') and node.children:
-                    return self._evaluate_operand(node.children[0])
+        return self._evaluate_expression(node)
+
+    def _apply_operator(self, operator, left, right):
+        """Apply binary operator to left and right operands"""
+        print(f"Applying operator: {left} {operator} {right}")
         
-        print(f"Unknown operand type: {node.node_type if hasattr(node, 'node_type') else 'No type'}")
+        if operator == "+":
+            result = left + right
+            print(f"Addition result: {result}")
+            return result
+        elif operator == "-":
+            result = left - right
+            print(f"Subtraction result: {result}")
+            return result
+        elif operator == "*":
+            result = left * right
+            print(f"Multiplication result: {result}")
+            return result
+        elif operator == "/":
+            if right == 0:
+                print("Division by zero error")
+                return None
+            result = left / right
+            print(f"Division result: {result}")
+            return result
+        elif operator == "%":
+            if right == 0:
+                print("Modulo by zero error")
+                return None
+            result = left % right
+            print(f"Modulo result: {result}")
+            return result
+        elif operator == "==":
+            result = left == right
+            print(f"Equality result: {result}")
+            return 1 if result else 0
+        elif operator == "!=":
+            result = left != right
+            print(f"Inequality result: {result}")
+            return 1 if result else 0
+        elif operator == "<":
+            result = left < right
+            print(f"Less than result: {result}")
+            return 1 if result else 0
+        elif operator == ">":
+            result = left > right
+            print(f"Greater than result: {result}")
+            return 1 if result else 0
+        elif operator == "<=":
+            result = left <= right
+            print(f"Less than or equal result: {result}")
+            return 1 if result else 0
+        elif operator == ">=":
+            result = left >= right
+            print(f"Greater than or equal result: {result}")
+            return 1 if result else 0
+        
+        print(f"Unknown operator: {operator}")
         return None
 
     def _print_scope_symbols(self):
