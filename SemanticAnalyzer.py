@@ -152,6 +152,8 @@ class SemanticAnalyzer:
         # If the node label is a non-terminal (e.g., "<local_declarations>") then try to call its visitor.
         if isinstance(node.value, str) and node.value.startswith('<') and node.value.endswith('>'):
             method_name = "visit_" + node.value.strip('<>').replace('-', '_')
+            if node.value == "<looping_statement>":
+                print(method_name + " ="*50)
             if hasattr(self, method_name):
                 getattr(self, method_name)(node)
             else:
@@ -637,7 +639,7 @@ class SemanticAnalyzer:
     def lookup_symbol(self, name, mark_used=True):
         """Enhanced symbol lookup that tries harder to find symbols in all scopes"""
         print(f"Looking up symbol: {name} in current scope: {self.current_scope.debugName}")
-        
+
         # First try the current scope
         if name in self.current_scope.symbols:
             symbol = self.current_scope.symbols[name]
@@ -645,14 +647,14 @@ class SemanticAnalyzer:
                 symbol.is_used = True
             print(f"Found symbol {name} in current scope {self.current_scope.debugName}")
             return symbol
-            
+
         # If not found and there's a parent, try the parent scope
         if self.current_scope.parent:
             print(f"Symbol {name} not found in {self.current_scope.debugName}, checking parent")
             parent_result = self.current_scope.parent.lookup(name, mark_used)
             if parent_result:
                 return parent_result
-                
+
         # If still not found, search all symbol tables
         print(f"Symbol {name} not found in direct parent chain, searching all tables")
         for table in self.symbol_tables:
@@ -663,7 +665,7 @@ class SemanticAnalyzer:
                         symbol.is_used = True
                     print(f"Found symbol {name} in table {table.debugName}")
                     return symbol
-        
+
         print(f"Symbol {name} not found in any scope")
         return None
 
@@ -975,15 +977,18 @@ class SemanticAnalyzer:
             print("Statement node has insufficient children")
             return
 
+        # children 2 'cause that shi is the second, second fucking dumbahh
         arg_node = statement_node.children[2]
         print(f"\nArgument node: {arg_node.value if hasattr(arg_node, 'value') else 'No value'}")
         print(f"Argument node type: {arg_node.node_type if hasattr(arg_node, 'node_type') else 'No type'}")
 
         if arg_node.node_type == 'id':
-            """ask for input"""
-            val = int(input("ask for input: "))
-            self.lookup_symbol(arg_node.value).value = val
-            print(self.lookup_symbol(arg_node.value))
+            #ask for input, for now in the fucking terminal, because I don't know how to pass a value from BE->FE->BE
+            val = input("ask for input: ")
+
+            symbol = self.lookup_symbol(arg_node.value)
+            symbol.value = val
+            print(symbol)
             self.output_buffer.append("input: " + str(val) + "")
 
 
@@ -1082,6 +1087,7 @@ class SemanticAnalyzer:
         if not node.children:
             return
         first_child = node.children[0]
+        print(first_child.node_type + " temp"*50)
 
         if hasattr(first_child, 'node_type') and first_child.node_type == "for":
             self._handle_for_loop(node)
