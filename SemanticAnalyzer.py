@@ -152,8 +152,6 @@ class SemanticAnalyzer:
         # If the node label is a non-terminal (e.g., "<local_declarations>") then try to call its visitor.
         if isinstance(node.value, str) and node.value.startswith('<') and node.value.endswith('>'):
             method_name = "visit_" + node.value.strip('<>').replace('-', '_')
-            if node.value == "<looping_statement>":
-                print(method_name + " ="*50)
             if hasattr(self, method_name):
                 getattr(self, method_name)(node)
             else:
@@ -194,7 +192,7 @@ class SemanticAnalyzer:
             # If we can't determine the type, log it for debugging
             print(f"Couldn't determine type for: {expr_node.value if hasattr(expr_node, 'value') else 'unknown'}")
             return None
-        
+
         # For <expression> nodes
         if hasattr(expr_node, 'value') and expr_node.value == "<expression>":
             # The type of an expression is the type of its operand
@@ -266,6 +264,103 @@ class SemanticAnalyzer:
         
         # Debug - log if we couldn't determine the type
         print(f"Failed to determine type for expression: {expr_node.value if hasattr(expr_node, 'value') else 'unknown'}")
+        return None
+
+    def get_condition_type(self, expr_node):
+        """Determine the type of a condition."""
+        # Base case for terminal nodes or nodes without children
+        if not hasattr(expr_node, 'children') or not expr_node.children:
+            if hasattr(expr_node, 'node_type'):
+                if expr_node.node_type == "pinchliterals":
+                    return "pinch"
+                elif expr_node.node_type == "skimliterals":
+                    return "skim"
+                elif expr_node.node_type == "pastaliterals":
+                    return "pasta"
+                elif expr_node.node_type == "id":
+                    symbol = self.current_scope.lookup(expr_node.value)
+                    if symbol:
+                        if 'element_type' in symbol.attributes:
+                            return symbol.attributes['element_type']
+                        return symbol.type
+            # If we can't determine the type, log it for debugging
+            print(f"Couldn't determine type for: {expr_node.value if hasattr(expr_node, 'value') else 'unknown'}")
+            return None
+
+        # For <condition> nodes
+        if hasattr(expr_node, 'value') and expr_node.value == "<condition>":
+            # The type of an expression is the type of its operand
+            if expr_node.children:
+                return self.get_condition_type(expr_node.children[0])
+            return None
+
+        # For <expression_operand> nodes
+        if hasattr(expr_node, 'value') and expr_node.value == "<condition_operand>":
+            if expr_node.children:
+                # The type is the type of the value inside
+                return self.get_condition_type(expr_node.children[0])
+            return None
+
+        # For <value> nodes
+        if hasattr(expr_node, 'value') and expr_node.value == "<value>":
+            if expr_node.children:
+                return self.get_condition_type(expr_node.children[0])
+            return None
+
+        # For <value3> nodes - these are often used in function calls
+        if hasattr(expr_node, 'value') and expr_node.value == "<value3>":
+            if expr_node.children:
+                return self.get_condition_type(expr_node.children[0])
+            return None
+
+        # Handle binary operations
+        if len(expr_node.children) >= 3:
+            left_expr = expr_node.children[0]
+            operator_node = expr_node.children[1]
+            right_expr = expr_node.children[2]
+
+            if hasattr(operator_node, 'value') and operator_node.value in ["+", "-", "*", "/", "%", "==", "!=", "<",
+                                                                           ">", "<=", ">=", "&&", "??"]:
+                left_type = self.get_condition_type(left_expr)
+                right_type = self.get_condition_type(right_expr)
+                operator = operator_node.value
+
+                print(f"Binary operation: {left_type} {operator} {right_type}")
+
+                # Logical operators always return boolean
+                if operator in ["==", "!=", "<", ">", "<=", ">=", "&&", "??"]:
+                    return "bool"
+
+                # Type promotion rules for arithmetic
+                if left_type == "skim" or right_type == "skim":
+                    return "skim"
+                elif left_type == "pinch" and right_type == "pinch":
+                    return "pinch"
+                elif left_type == "pasta" and right_type == "pasta" and operator == "+":
+                    return "pasta"
+
+        # For <literals> nodes
+        if hasattr(expr_node, "value") and expr_node.value == "<literals>":
+            return self.get_condition_type(expr_node.children[0])
+
+        # Handle literals directly
+        if hasattr(expr_node, 'value'):
+            if hasattr(expr_node, 'node_type'):
+                if expr_node.node_type == "pinchliterals":
+                    return "pinch"
+                elif expr_node.node_type == "skimliterals":
+                    return "skim"
+                elif expr_node.node_type == "pastaliterals":
+                    return "pasta"
+
+        # For parenthesized expressions
+        if len(expr_node.children) >= 3 and hasattr(expr_node.children[0], 'value') and expr_node.children[
+            0].value == "(":
+            return self.get_condition_type(expr_node.children[1])
+
+        # Debug - log if we couldn't determine the type
+        print(
+            f"Failed to determine type for condition: {expr_node.value if hasattr(expr_node, 'value') else 'unknown'}")
         return None
 
     def are_types_compatible(self, target_type, expr_type):
@@ -1087,7 +1182,10 @@ class SemanticAnalyzer:
         if not node.children:
             return
         first_child = node.children[0]
-        print(first_child.node_type + " temp"*50)
+        #add scope for the local-local
+        old_scope = self.current_scope
+        self.current_scope = SymbolTable(debugName="loop_temp", parent=old_scope)
+        self.symbol_tables.append(self.current_scope)
 
         if hasattr(first_child, 'node_type') and first_child.node_type == "for":
             self._handle_for_loop(node)
@@ -1105,12 +1203,31 @@ class SemanticAnalyzer:
                 line=line_num
             ))
             return
-        
+
+        #need to do the assignment first!
+        _dtype = node.children[2].children[0]
+        _dname = node.children[3].value
+        _dvalue = node.children[5].children[0]
+        if _dtype.value != "λ":
+            _dtype = "pinch"
+        # Create symbol and add it to the current scope for the first variable
+        symbol = Symbol(_dname, _dtype)
+        print(f"Adding symbol {_dname} to scope {self.current_scope.debugName}")
+        self.current_scope.add(_dname, symbol)
+        if _dvalue.node_type == "id":
+            _dvalue = self.lookup_symbol(_dvalue.value)
+        else:
+            _dvalue = self._extract_literal_value(_dvalue)
+
+        if _dvalue is not None:
+            symbol.set_value(_dvalue)
+
         # Check that the condition expression evaluates to a boolean compatible type
-        condition_expr = node.children[3]
-        condition_type = self.get_expression_type(condition_expr)
-        
-        if condition_type and condition_type not in ["pinch", "skim", "bool"]:
+        # WHY ARE YOU FUCKING CHEKCING THE ID, INSTEAD OF A FUCKING CONDITION!??????? DO YOU EVEN KNOW THE SEQUENCE OF YOUR FUCKING SYMBOLSS!??? PARSE TREEE? AHJJJJJJJJASDJKHSAJKD
+        condition_expr = node.children[7]
+        condition_type = self.get_condition_type(condition_expr)
+        print(condition_type + " " + "="*50)
+        if not condition_type and condition_type not in ["pinch", "skim", "bool"]:
             line_num = getattr(condition_expr, 'line_number', None)
             self.errors.append(SemanticError(
                 code="INVALID_CONDITION", 
