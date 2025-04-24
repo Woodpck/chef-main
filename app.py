@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, jsonify
 from LexicalAnalyzer import LexicalAnalyzer
 from SyntaxAnalyzer import SyntaxAnalyzer, LL1Parser, cfg, parse_table, follow_set
 from SemanticAnalyzer import SemanticAnalyzer
+import sys
+sys.setrecursionlimit(10000)
 
 app = Flask(__name__)
 

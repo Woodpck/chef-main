@@ -155,7 +155,7 @@ cfg = {
     
     "<condition>": [["<condition_operand>", "<condition_tail>"]],
     
-    "<condition_tail>": [["<condition_operator>", "<condition_operand>", "<condition_tail>"],
+    "<condition_tail>": [["<condition_operator>", "<condition_operand>", "<relational>"],
                         ["λ"]],
     
     "<condition_operand>": [["<value>"],
@@ -170,9 +170,11 @@ cfg = {
                             ["<"],
                             [">"],
                             ["<="],
-                            [">="],
-                            ["&&"],
-				            ["??"]],
+                            [">="]],
+    "<relational>": [["<relational_operator>", "<condition>"],
+                     ["λ"]],
+    "<relational_operator>":    [["&&"],
+                                ["??"]],
     
     "<case_tail>": [["case", "<literals4>", ":", "<statement_block>", "chop", ";", "<case_tail>"],
                        ["λ"]],

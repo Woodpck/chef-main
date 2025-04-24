@@ -860,6 +860,7 @@ class SemanticAnalyzer:
                         # Unwrap the real operator string
                         raw_op = None
                         operator_node = second_child.children[0]
+                        print(operator_node.node_type)
                         
                         # If it's an <assignment_operator> wrapper, grab its child token
                         if operator_node.value == "<assignment_operator>" and operator_node.children:
@@ -869,7 +870,9 @@ class SemanticAnalyzer:
                         elif operator_node.value in ["=", "+=", "-=", "*=", "/=", "%="]:
                             raw_op = operator_node.value
                             print(f"Found direct operator: {raw_op}")
-                        
+                        elif operator_node.value == '<unary_op>':
+                            raw_op = operator_node.children[0].value
+                            print(f"Found direct operator: {raw_op}")
                         expr_node = second_child.children[1]
                         
                         print(f"\nProcessing expression for {var_name}")
@@ -935,7 +938,24 @@ class SemanticAnalyzer:
                                 self._print_node_structure(expr_node)
                                 print("\nCurrent scope symbols:")
                                 self._print_scope_symbols()
-        
+                        elif raw_op in ["++", "--"]:
+                            print(f"\nFound inc_dec operator: {raw_op}")
+
+                            # Look up the symbol
+                            symbol = self.current_scope.lookup(var_name)
+                            if not symbol:
+                                line_num = getattr(node, 'line_number', None)
+                                self.errors.append(SemanticError(
+                                    code="UNDEFINED_VARIABLE",
+                                    message=f"VARIABLE '{var_name}' is UNDEFINED!",
+                                    line=line_num
+                                ))
+                                return
+                            if raw_op == '++':
+                                symbol.set_value((symbol.get_value() or 0) + 1)
+                            elif raw_op == '--':
+                                symbol.set_value((symbol.get_value() or 0) - 1)
+
         # Continue with generic visit to process other types of statements
         self.generic_visit(node)
 
@@ -1189,51 +1209,103 @@ class SemanticAnalyzer:
 
         if hasattr(first_child, 'node_type') and first_child.node_type == "for":
             self._handle_for_loop(node)
+
+        self.symbol_tables.pop()
+        self.current_scope = old_scope
         
-        # Continue with the generic visit to process child nodes
-        self.generic_visit(node)
+        # Continue with the generic visit to process child nodes???????? ARE YOU FUCKING RETARDED? THIS IS A FUCKING LOOP
+        #self.generic_visit(node)
 
-    def _handle_for_loop(self, node):
+    def _handle_for_loop(self, node, loop=False):
         # Expected structure: for ( <assignment> ; <expression> ; <assignment> ) <statement>
-        if len(node.children) < 7:
-            line_num = getattr(node, 'line_number', None)
-            self.errors.append(SemanticError(
-                code="INVALID_FOR_LOOP", 
-                message="Invalid for loop structure",
-                line=line_num
-            ))
-            return
+        # general fucking process
+        """
+            1: assign the fucking variables
+            -----fucking loop-----
+            2: check the fucking condition
+            3: execute the fucking code block
+            4: increment/decrement
+            -----fucking loop-----
+        """
+        if not loop:
+            if len(node.children) < 7:
+                line_num = getattr(node, 'line_number', None)
+                self.errors.append(SemanticError(
+                    code="INVALID_FOR_LOOP",
+                    message="Invalid for loop structure",
+                    line=line_num
+                ))
+                return
 
-        #need to do the assignment first!
-        _dtype = node.children[2].children[0]
-        _dname = node.children[3].value
-        _dvalue = node.children[5].children[0]
-        if _dtype.value != "λ":
-            _dtype = "pinch"
-        # Create symbol and add it to the current scope for the first variable
-        symbol = Symbol(_dname, _dtype)
-        print(f"Adding symbol {_dname} to scope {self.current_scope.debugName}")
-        self.current_scope.add(_dname, symbol)
-        if _dvalue.node_type == "id":
-            _dvalue = self.lookup_symbol(_dvalue.value)
-        else:
-            _dvalue = self._extract_literal_value(_dvalue)
+            #need to do the assignment first!
+            _dtype = node.children[2]
+            _dname = node.children[3].value
+            _dvalue = node.children[5].children[0]
+            if _dtype.children:
+                # Create symbol and add it to the current scope for the first variable
+                symbol = Symbol(_dname, _dtype.children[0].value)
+                print(f"Adding symbol {_dname} to scope {self.current_scope.debugName}")
+                self.current_scope.add(_dname, symbol)
+                if _dvalue.node_type == "id":
+                    _dvalue = self.lookup_symbol(_dvalue.value)
+                else:
+                    _dvalue = self._extract_literal_value(_dvalue)
 
-        if _dvalue is not None:
-            symbol.set_value(_dvalue)
+                if _dvalue is not None:
+                    symbol.set_value(_dvalue)
+            else:
+                symbol = self.lookup_symbol(_dname)
+                if _dvalue.node_type == "id":
+                    _dvalue = self.lookup_symbol(_dvalue.value)
+                else:
+                    _dvalue = self._extract_literal_value(_dvalue)
+                print(f"Replacing value of {_dname} to {_dvalue} from scope {self.current_scope.debugName}")
+
+                if _dvalue is not None:
+                    symbol.set_value(_dvalue)
 
         # Check that the condition expression evaluates to a boolean compatible type
         # WHY ARE YOU FUCKING CHEKCING THE ID, INSTEAD OF A FUCKING CONDITION!??????? DO YOU EVEN KNOW THE SEQUENCE OF YOUR FUCKING SYMBOLSS!??? PARSE TREEE? AHJJJJJJJJASDJKHSAJKD
+
         condition_expr = node.children[7]
         condition_type = self.get_condition_type(condition_expr)
         print(condition_type + " " + "="*50)
+        print(f"Condition Evaluation := " + str(self._evaluate_condition(condition_expr)))
+        eval_result = self._evaluate_condition(condition_expr)
         if not condition_type and condition_type not in ["pinch", "skim", "bool"]:
             line_num = getattr(condition_expr, 'line_number', None)
             self.errors.append(SemanticError(
-                code="INVALID_CONDITION", 
+                code="INVALID_CONDITION",
                 message=f"Loop condition must evaluate to a boolean compatible type, got '{condition_type}'",
                 line=line_num
             ))
+
+        if eval_result:
+            #execute code block
+            statement_node = node.children[12]
+            self.generic_visit(statement_node)
+            #do the inc_dec
+            var_name = node.children[9].children[0].value
+            var_op = node.children[9].children[1].children[0].value
+
+            # Look up the symbol
+            symbol = self.current_scope.lookup(var_name)
+            if not symbol:
+                line_num = getattr(node, 'line_number', None)
+                self.errors.append(SemanticError(
+                    code="UNDEFINED_VARIABLE",
+                    message=f"VARIABLE '{var_name}' is UNDEFINED!",
+                    line=line_num
+                ))
+                return
+            print(var_op)
+            if var_op == '++':
+                symbol.set_value((symbol.get_value() or 0) + 1)
+            elif var_op == '--':
+                symbol.set_value((symbol.get_value() or 0) - 1)
+
+            self._handle_for_loop(node, True)
+
 
     #-----------------------------------------------------------------
     # Return statement handling
@@ -1288,7 +1360,7 @@ class SemanticAnalyzer:
         # For identifier usage in expressions, assume the leaf node value is the identifier name.
         var_name = node.value
         line_num = node.line_number
-        
+        # this shoul have a fucking error handling !!!
         # Skip checking for undeclared identifiers
         return
 
@@ -1529,6 +1601,189 @@ class SemanticAnalyzer:
         print(f"Unable to evaluate expression node: {node.value}")
         return None
 
+    def _evaluate_condition(self, node):
+        if not node:
+            return None
+
+        print("\n" + "=" * 50)
+        print("DEBUG: Starting condition evaluation")
+        print("=" * 50)
+        print(f"Evaluating node: {node.value if hasattr(node, 'value') else 'No value'}")
+        print(f"Node type: {node.node_type if hasattr(node, 'node_type') else 'No type'}")
+        if hasattr(node, 'children'):
+            print(f"Children count: {len(node.children)}")
+            for i, child in enumerate(node.children[:3]):  # Show first 3 children for brevity
+                print(f"Child {i}: {child.value if hasattr(child, 'value') else 'No value'}")
+
+        # Handle condition nodes
+        if node.value == "<condition>":
+            print("Processing <condition> node")
+            if len(node.children) >= 2:
+                operand_node = node.children[0]  # First child is <condition_operand>
+                tail_node = node.children[1]  # Second child is <condition_tail>
+
+                # Evaluate the first operand
+                left_value = self._evaluate_condition(operand_node)
+                print(f"Left operand value: {left_value}")
+
+                # Process any operations in the expression tail
+                if left_value is not None:
+                    result = self._process_condition_tail(tail_node, left_value)
+                    return result
+                return left_value
+
+        # Handle condition_operand nodes
+        elif node.value == "<condition_operand>":
+            print("Processing <condition_operand> node")
+            if node.children:
+                # Check if this is a parenthesized expression
+                if len(node.children) >= 3 and node.children[0].value == "(":
+                    print("Found parenthesized expression")
+                    # The actual expression is the second child (index 1)
+                    expr_node = node.children[1]
+                    value = self._evaluate_condition(expr_node)
+                    print(f"Parenthesized expression value: {value}")
+                    return value
+                else:
+                    # Regular operand, evaluate normally
+                    return self._evaluate_condition(node.children[0])
+
+        # Handle value nodes
+        elif node.value == "<value>":
+            print("Processing <value> node")
+            if len(node.children) >= 1:
+                # First child could be an ID or a literal
+                first_child = node.children[0]
+
+                # Special handling for parenthesized expressions
+                if hasattr(first_child, 'value') and first_child.value == "(":
+                    if len(node.children) >= 3:  # Should have "(", expr, ")"
+                        expr_node = node.children[1]
+                        value = self._evaluate_condition(expr_node)
+                        print(f"Parenthesized value: {value}")
+                        return value
+
+                if hasattr(first_child, 'node_type') and first_child.node_type == "id":
+                    # Look up the variable
+                    var_name = first_child.value
+                    symbol = self.lookup_symbol(var_name)
+                    if symbol:
+                        print(f"Found variable {var_name} with value: {symbol.get_value()}")
+                        return symbol.get_value()
+                    else:
+                        print(f"Variable not found: {var_name}")
+                        return None
+                else:
+                    # For other types, evaluate the child
+                    return self._evaluate_condition(first_child)
+
+        # Handle value_id_tail nodes
+        elif node.value == "<value_id_tail>":
+            print("Processing <value_id_tail> node")
+            # This node is usually empty for basic expressions, so just return None
+            return None
+
+        # Handle literals and literals nodes
+        elif node.value == "<literals>" or (
+                hasattr(node, 'node_type') and node.node_type in ["pinchliterals", "skimliterals",
+                                                                  "pastaliterals"]):
+            print(f"Processing literals node: {node.value}")
+            if hasattr(node, 'node_type'):
+                if node.node_type == "pinchliterals":
+                    try:
+                        value = int(node.value)
+                        print(f"Parsed literal integer: {value}")
+                        return value
+                    except (ValueError, TypeError):
+                        pass
+                elif node.node_type == "skimliterals":
+                    try:
+                        value = float(node.value)
+                        print(f"Parsed literal float: {value}")
+                        return value
+                    except (ValueError, TypeError):
+                        pass
+                elif node.node_type == "pastaliterals":
+                    value = node.value.strip('"')
+                    print(f"Parsed literal string: {value}")
+                    return value
+
+            # For <literals> nodes, evaluate the first child
+            if node.value == "<literals>" and node.children:
+                return self._evaluate_condition(node.children[0])
+
+        print(f"Unable to evaluate condition node: {node.value}")
+        return None
+    def _process_relational(self, tail_node, left_value):
+        if not tail_node or not hasattr(tail_node, 'value') or tail_node.value != "<relational>":
+            return left_value
+
+        if not hasattr(tail_node, 'children') or not tail_node.children or tail_node.children[0].value == "λ":
+            # Empty tail, no operation to perform
+            return left_value
+
+        # Get the operator - first child of expression_tail
+        operator_node = tail_node.children[0].children[0]
+        right_node = tail_node.children[1]
+        if right_node.node_type == '<condition>':
+            right_value = self._evaluate_condition(right_node)
+            result = self._apply_condition_operator(operator_node.value, left_value, right_value)
+            print(f"Condition relation result after operation {left_value} {operator_node.value} {right_value} = {result}")
+            return result
+
+    def _process_condition_tail(self, tail_node, left_value):
+        """Process a condition tail with possible chained operations."""
+        if not tail_node or not hasattr(tail_node, 'value') or tail_node.value != "<condition_tail>":
+            return left_value
+
+        if not hasattr(tail_node, 'children') or not tail_node.children or tail_node.children[0].value == "λ":
+            # Empty tail, no operation to perform
+            return left_value
+
+        # Get the operator - first child of expression_tail
+        operator_node = tail_node.children[0]
+
+        # Extract the actual operator from <expression_operator> if needed
+        actual_operator = None
+        if operator_node.value == "<condition_operator>" and operator_node.children:
+            # The real operator is the first child of <expression_operator>
+            actual_operator = operator_node.children[0].value
+            print(f"Extracted operator from <condition_operator>: {actual_operator}")
+        else:
+            actual_operator = operator_node.value
+            print(f"Direct operator: {actual_operator}")
+
+        # Get the right operand - second child of expression_tail
+        if len(tail_node.children) < 2:
+            return left_value  # No right operand
+
+        right_operand_node = tail_node.children[1]
+        print(f"Right operand node: {right_operand_node.value}")
+
+        # Evaluate the right operand
+        right_value = self._evaluate_condition(right_operand_node)
+        print(f"Right operand value: {right_value}")
+
+        # Apply the operator using the actual operator value
+        if left_value is not None and right_value is not None and actual_operator:
+            result = self._apply_condition_operator(actual_operator, left_value, right_value)
+            print(f"Condition result after operation {left_value} {actual_operator} {right_value} = {result}")
+
+            # Check if there are more operations in the tail
+            if len(tail_node.children) > 2:
+                next_tail = tail_node.children[2]
+                if next_tail.value == "<relational>" and hasattr(next_tail, 'children') and next_tail.children and \
+                        next_tail.children[0].value != "λ":
+                    # Recursively process the next operation with our current result as the left value
+                    print(f"Continuing to next operation in chain with result {result}")
+                    return self._process_relational(next_tail, result)
+
+            return result
+
+        # If either value is None or the operator is invalid, return the left value
+        print(f"Cannot evaluate expression, left: {left_value}, right: {right_value}, op: {actual_operator}")
+        return left_value
+
     def _process_expression_tail(self, tail_node, left_value):
         """Process an expression tail with possible chained operations."""
         if not tail_node or not hasattr(tail_node, 'value') or tail_node.value != "<expression_tail>":
@@ -1692,31 +1947,47 @@ class SemanticAnalyzer:
             result = left % right
             print(f"Modulo result: {result}")
             return result
-        elif operator == "==":
+
+    def _apply_condition_operator(self, operator, left, right):
+        print(f"Applying condition operator: {left} {operator} {right}")
+
+        if operator == "==":
             result = left == right
             print(f"Equality result: {result}")
-            return 1 if result else 0
+            return True if result else False
+
         elif operator == "!=":
             result = left != right
             print(f"Inequality result: {result}")
-            return 1 if result else 0
+            return True if result else False
+
         elif operator == "<":
             result = left < right
             print(f"Less than result: {result}")
-            return 1 if result else 0
+            return True if result else False
         elif operator == ">":
             result = left > right
             print(f"Greater than result: {result}")
-            return 1 if result else 0
+            return True if result else False
         elif operator == "<=":
             result = left <= right
             print(f"Less than or equal result: {result}")
-            return 1 if result else 0
+            return True if result else False
         elif operator == ">=":
             result = left >= right
             print(f"Greater than or equal result: {result}")
-            return 1 if result else 0
-        
+            return True if result else False
+
+        elif operator == "&&":
+            result = left and right
+            print(f"And result: {result}")
+            return True if result else False
+
+        elif operator == "??":
+            result = left or right
+            print(f"Or result: {result}")
+            return True if result else False
+
         print(f"Unknown operator: {operator}")
         return None
 
