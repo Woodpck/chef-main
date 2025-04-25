@@ -1,4 +1,5 @@
 from SyntaxAnalyzer import ParseTreeNode
+from datetime import datetime
 
 class SemanticError(Exception):
     def __init__(self, code, message, line=None, identifier=None, is_warning=False):
@@ -955,7 +956,24 @@ class SemanticAnalyzer:
                                 symbol.set_value((symbol.get_value() or 0) + 1)
                             elif raw_op == '--':
                                 symbol.set_value((symbol.get_value() or 0) - 1)
-
+            elif hasattr(first_child, 'node_type') and first_child.node_type == "<unary_op>":
+                var_name = second_child.value
+                var_op = first_child.children[0].value
+                # Look up the symbol
+                symbol = self.current_scope.lookup(var_name)
+                if not symbol:
+                    line_num = getattr(node, 'line_number', None)
+                    self.errors.append(SemanticError(
+                        code="UNDEFINED_VARIABLE",
+                        message=f"VARIABLE '{var_name}' is UNDEFINED!",
+                        line=line_num
+                    ))
+                    return
+                print(var_op)
+                if var_op == '++':
+                    symbol.set_value((symbol.get_value() or 0) + 1)
+                elif var_op == '--':
+                    symbol.set_value((symbol.get_value() or 0) - 1)
         # Continue with generic visit to process other types of statements
         self.generic_visit(node)
 
@@ -1204,17 +1222,53 @@ class SemanticAnalyzer:
         first_child = node.children[0]
         #add scope for the local-local
         old_scope = self.current_scope
-        self.current_scope = SymbolTable(debugName="loop_temp", parent=old_scope)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        self.current_scope = SymbolTable(debugName=f"loop_{timestamp}", parent=old_scope)
         self.symbol_tables.append(self.current_scope)
 
         if hasattr(first_child, 'node_type') and first_child.node_type == "for":
             self._handle_for_loop(node)
+        elif hasattr(first_child, 'node_type') and first_child.node_type == "simmer":
+            self._handle_simmer_loop(node)
+        elif hasattr(first_child, 'node_type') and first_child.node_type == "keepmix":
+            self._handle_keepmix_loop(node)
 
         self.symbol_tables.pop()
         self.current_scope = old_scope
         
         # Continue with the generic visit to process child nodes???????? ARE YOU FUCKING RETARDED? THIS IS A FUCKING LOOP
         #self.generic_visit(node)
+    def _handle_keepmix_loop(self, node):
+        """
+            1: execute the motherfucking code
+            2: check the fucking condition
+            3: loop 1 if the fucking condition is true
+        """
+        statement_node = node.children[2]
+        self.generic_visit(statement_node)
+
+        condition_node = node.children[6]
+        print(condition_node)
+        eval_result = self._evaluate_condition(condition_node)
+        print(f"Condition Evaluation := " + str(eval_result))
+        if eval_result:
+            self._handle_keepmix_loop(node)
+
+    def _handle_simmer_loop(self, node):
+        """
+            -----fucking loop-----
+            1: check the fucking condition
+            2: execute the fucking code
+            -----fucking loop-----
+        """
+        condition_node = node.children[2]
+        eval_result = self._evaluate_condition(condition_node)
+        print(f"Condition Evaluation := " + str(eval_result))
+        if eval_result:
+            statement_node = node.children[5]
+            self.generic_visit(statement_node)
+            self._handle_simmer_loop(node)
 
     def _handle_for_loop(self, node, loop=False):
         # Expected structure: for ( <assignment> ; <expression> ; <assignment> ) <statement>
@@ -1270,8 +1324,8 @@ class SemanticAnalyzer:
         condition_expr = node.children[7]
         condition_type = self.get_condition_type(condition_expr)
         print(condition_type + " " + "="*50)
-        print(f"Condition Evaluation := " + str(self._evaluate_condition(condition_expr)))
         eval_result = self._evaluate_condition(condition_expr)
+        print(f"Condition Evaluation := " + str(eval_result))
         if not condition_type and condition_type not in ["pinch", "skim", "bool"]:
             line_num = getattr(condition_expr, 'line_number', None)
             self.errors.append(SemanticError(
