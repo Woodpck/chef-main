@@ -147,17 +147,19 @@ cfg = {
                    ["--"]],
     
     "<conditional_statement>": [["taste", "(", "<condition>", ")", "{", "<statement_block>", "}", "<conditional_tail>"],
-                                ["flip", "(", "id", ")", "{", "case", "<literals4>", ":", "<statement_block>", "chop", ";", "<case_tail>", "<default_block>", "}"]],
+                                ["flip", "(", "id", ")", "{",
+                                 "case", "<literals4>", ":", "<statement_block>", "chop", ";",
+                                 "<case_tail>", "}"]],
     
     "<conditional_tail>": [["elif", "(", "<condition>", ")", "{", "<statement_block>", "}", "<conditional_tail>"],
                             ["mix", "{", "<statement_block>", "}"],
                             ["λ"]],
-    
+
     "<condition>": [["<condition_operand>", "<condition_tail>"]],
     
     "<condition_tail>": [["<condition_operator>", "<condition_operand>", "<relational>"],
                         ["λ"]],
-    
+
     "<condition_operand>": [["<value>"],
                             ["(", "<condition>", ")"],
                             ["!", "(", "<condition>", ")"],
@@ -175,13 +177,14 @@ cfg = {
                      ["λ"]],
     "<relational_operator>":    [["&&"],
                                 ["??"]],
-    
+
     "<case_tail>": [["case", "<literals4>", ":", "<statement_block>", "chop", ";", "<case_tail>"],
-                       ["λ"]],
+                    ["default", ":", "<statement_block>", "chop", ";"],
+                    ["λ"]],
     
     "<literals4>": [["pinchliterals"],
                     ["pastaliterals"]],
-    
+
     "<default_block>": [["default", ":", "<statement_block>", "chop", ";"],
                        ["λ"]],
     

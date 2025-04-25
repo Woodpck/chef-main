@@ -1124,7 +1124,6 @@ class SemanticAnalyzer:
             print(symbol)
             self.output_buffer.append("input: " + str(val) + "")
 
-
     def _evaluate_function_call(self, func_name):
         """Evaluate a function call and return its output"""
         print(f"\n=== Evaluating function call: {func_name} ===")
@@ -1239,6 +1238,148 @@ class SemanticAnalyzer:
         
         # Continue with the generic visit to process child nodes???????? ARE YOU FUCKING RETARDED? THIS IS A FUCKING LOOP
         #self.generic_visit(node)
+
+    def visit_conditional_statement(self, node):
+        if not node.children:
+            return
+        first_child = node.children[0]
+
+        if hasattr(first_child, 'node_type') and first_child.node_type == "taste":
+            self._handle_taste_condition(node)
+        elif hasattr(first_child, 'node_type') and first_child.node_type == "flip":
+            self._handle_flip_condition(node)
+
+    def _handle_taste_condition(self, node):
+        """
+            1: check the fucking condition
+            2: execute code block if the fucking condition is true
+            3: check for the fucking conditional_tail
+        """
+
+
+        condition_node = node.children[2]
+        eval_result = self._evaluate_condition(condition_node)
+        print(f"Taste Condition Evaluation := " + str(eval_result))
+        if eval_result:
+            # add scope for the local-local
+            old_scope = self.current_scope
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            self.current_scope = SymbolTable(debugName=f"conditional_{timestamp}", parent=old_scope)
+            self.symbol_tables.append(self.current_scope)
+
+            statement_node = node.children[5]
+            self.generic_visit(statement_node)
+
+            self.symbol_tables.pop()
+            self.current_scope = old_scope
+        else:
+            tail_node = node.children[7]
+            self._handle_conditional_tail(tail_node)
+
+    def _handle_flip_condition(self, node):
+        """
+            1: get the fucking base variable
+            2: compare the fucking variable to each cases
+            3: pretty much the fucking same with if-elif-else
+        """
+
+        variable = node.children[2]
+        symbol = self.lookup_symbol(variable.value)
+        case_val = node.children[6].children[0]
+
+        if case_val.node_type == 'pinchliterals':
+            case_val = int(case_val.value)
+            eval_result = int(symbol.get_value()) == case_val
+        else:
+            case_val = str(case_val.value)
+            eval_result = str(symbol.get_value()) == case_val
+        if eval_result:
+            statement_node = node.children[8]
+            self.generic_visit(statement_node)
+        else:
+            case_tail = node.children[11]
+            self._handle_case_tail(variable, case_tail)
+
+    def _handle_case_tail(self, id_node, node):
+        """
+                    1: check the first fucking case and compare
+                    2: if true execute yourself fuck you
+                    3: if not, check the rest of the cases
+                """
+
+        if not node.children:
+            return
+
+        variable = id_node
+        symbol = self.lookup_symbol(variable.value)
+
+        first_child = node.children[0]
+        if hasattr(first_child, 'node_type') and first_child.node_type == "case":
+            case_val = node.children[1].children[0]
+            if case_val.node_type == 'pinchliterals':
+                case_val = int(case_val.value)
+                eval_result = int(symbol.get_value()) == case_val
+            else:
+                case_val = str(case_val.value)
+                eval_result = str(symbol.get_value()) == case_val
+            if eval_result:
+                statement_node = node.children[3]
+                self.generic_visit(statement_node)
+            else:
+                case_tail = node.children[6]
+                self._handle_case_tail(id_node, case_tail)
+        elif hasattr(first_child, 'node_type') and first_child.node_type == "default":
+            statement_node = node.children[2]
+            print(statement_node)
+            self.generic_visit(statement_node)
+
+
+
+    def _handle_conditional_tail(self, node):
+        """
+            1: check for the fucking condition
+            2: if there is still some fucking recall this
+            3: if it becomes null, then nothing
+        """
+        if not node.children:
+            return
+
+        first_child = node.children[0]
+
+        if hasattr(first_child, 'node_type') and first_child.node_type == "elif":
+            condition_node = node.children[2]
+            eval_result = self._evaluate_condition(condition_node)
+            print(f"Taste Condition Evaluation := " + str(eval_result))
+            if eval_result:
+
+                # add scope for the local-local
+                old_scope = self.current_scope
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                self.current_scope = SymbolTable(debugName=f"conditional_{timestamp}", parent=old_scope)
+                self.symbol_tables.append(self.current_scope)
+
+                statement_node = node.children[5]
+                self.generic_visit(statement_node)
+
+                self.symbol_tables.pop()
+                self.current_scope = old_scope
+            else:
+                tail_node = node.children[7]
+                self._handle_conditional_tail(tail_node)
+        elif hasattr(first_child, 'node_type') and first_child.node_type == "mix":
+                # add scope for the local-local
+                old_scope = self.current_scope
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                self.current_scope = SymbolTable(debugName=f"conditional_{timestamp}", parent=old_scope)
+                self.symbol_tables.append(self.current_scope)
+
+                statement_node = node.children[2]
+                self.generic_visit(statement_node)
+
+                #remove scope
+                self.symbol_tables.pop()
+                self.current_scope = old_scope
+
     def _handle_keepmix_loop(self, node):
         """
             1: execute the motherfucking code
@@ -1249,9 +1390,8 @@ class SemanticAnalyzer:
         self.generic_visit(statement_node)
 
         condition_node = node.children[6]
-        print(condition_node)
         eval_result = self._evaluate_condition(condition_node)
-        print(f"Condition Evaluation := " + str(eval_result))
+        print(f"Do-While Condition Evaluation := " + str(eval_result))
         if eval_result:
             self._handle_keepmix_loop(node)
 
@@ -1264,7 +1404,7 @@ class SemanticAnalyzer:
         """
         condition_node = node.children[2]
         eval_result = self._evaluate_condition(condition_node)
-        print(f"Condition Evaluation := " + str(eval_result))
+        print(f"While Condition Evaluation := " + str(eval_result))
         if eval_result:
             statement_node = node.children[5]
             self.generic_visit(statement_node)
@@ -1325,7 +1465,7 @@ class SemanticAnalyzer:
         condition_type = self.get_condition_type(condition_expr)
         print(condition_type + " " + "="*50)
         eval_result = self._evaluate_condition(condition_expr)
-        print(f"Condition Evaluation := " + str(eval_result))
+        print(f"For Condition Evaluation := " + str(eval_result))
         if not condition_type and condition_type not in ["pinch", "skim", "bool"]:
             line_num = getattr(condition_expr, 'line_number', None)
             self.errors.append(SemanticError(
@@ -1768,6 +1908,7 @@ class SemanticAnalyzer:
 
         print(f"Unable to evaluate condition node: {node.value}")
         return None
+
     def _process_relational(self, tail_node, left_value):
         if not tail_node or not hasattr(tail_node, 'value') or tail_node.value != "<relational>":
             return left_value
