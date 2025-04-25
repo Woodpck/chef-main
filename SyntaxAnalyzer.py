@@ -48,9 +48,9 @@ cfg = {
     "<elementtail>": [[",", "<literals>", "<elementtail>"],
                 ["λ"]],
     
-	"<function>": [["full", "<data_type>", "id", "(", "<parameters>", ")", "{", "<local_dec>", "<statement_block>", "<return_statement>", ";", "}", "<function>"],
-						["hungry", "id", "(", "<parameters>", ")", "{", "<local_dec>", "<statement_block>", "}", "<function>"],
-                        ["λ"]],
+	"<function>": [ ["full", "<data_type>", "id", "(", "<parameters>", ")", "{", "<local_dec>", "<statement_block>", "<return_statement>", ";", "}", "<function>"],
+				    ["hungry", "id", "(", "<parameters>", ")", "{", "<local_dec>", "<statement_block>", "}", "<function>"],
+                    ["λ"]],
  
 	"<parameters>": [["<data_type>", "id", "<param_tail>"],
 					["λ"]],
