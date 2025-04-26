@@ -1,6 +1,7 @@
 from SyntaxAnalyzer import ParseTreeNode
 from datetime import datetime
 
+
 class SemanticError(Exception):
     def __init__(self, code, message, line=None, identifier=None, is_warning=False):
         self.code = code  # e.g., "DUPLICATE_DECLARATION"
@@ -650,6 +651,8 @@ class SemanticAnalyzer:
             
             # Get array dimension
             dimension_node = node.children[4]
+
+            #this part if fucking unnecessary, because the CFG already captures this shi, fuckihhh biiihh
             try:
                 dimension = int(dimension_node.value)
             except (ValueError, AttributeError) as e:
@@ -662,29 +665,84 @@ class SemanticAnalyzer:
                 ))
             
             attributes = {'dimensions': dimension, 'element_type': var_type}
-            
+            values = []
+            element_ctr = 0;
             # Check initialization
             if len(node.children) > 6:
                 elements_node = node.children[6]  # This is the <elements> node
                 if hasattr(elements_node, 'children'):
-                    for child in elements_node.children:
-                        if hasattr(child, 'value') and child.value == '<literals>':
-                            # Found the literals node, check its children
-                            for value_node in child.children:
-                                value_type = self.get_expression_type(value_node)
-                                if value_type and value_type != var_type:
-                                    # Convert base types to literal types for error message
-                                    literal_type = value_type + "literals" if value_type in ["pinch", "skim", "pasta"] else value_type
-                                    target_literal_type = var_type + "literals" if var_type in ["pinch", "skim", "pasta"] else var_type
-                                    self.errors.append(SemanticError(
-                                        code="TYPE_MISMATCH",
-                                        message=f"Type mismatch in array initialization of '{var_name}': cannot assign '{literal_type}' to '{target_literal_type}'",
-                                        line=line_num,
-                                        identifier=var_name
-                                    ))
+                    first_literal_node = elements_node.children[2].children[0]
+
+                    if not set(var_type).issubset(first_literal_node.node_type):
+                        self.errors.append(SemanticError(
+                            code="TYPE_MISMATCH",
+                            message=f"Expected value '{var_type}' received value '{first_literal_node.node_type}'",
+                            line=line_num,
+                            identifier=var_name
+                        ))
+
+                    #append to the fucking value array ashjknddashjkdashjkasdhjkhjlkdas
+                    values.append(first_literal_node.value)
+                    element_ctr += 1
+
+                    #check if there's more
+                    element_tail = elements_node.children[3]
+                    while element_tail.children:
+                        literal_node = element_tail.children[1].children[0]
+
+                        if not set(var_type).issubset(literal_node.node_type):
+                            self.errors.append(SemanticError(
+                                code="TYPE_MISMATCH",
+                                message=f"Expected value '{var_type}' received value '{literal_node.node_type}'",
+                                line=line_num,
+                                identifier=var_name
+                            ))
+                            break
+
+                        # append to the fucking value array ashjknddashjkdashjkasdhjkhjlkdas
+                        values.append(literal_node.value)
+                        element_ctr += 1
+                        element_tail = element_tail.children[2]
+
+
+                    # THIS FUCKING CODE IS RETARDATION, ISTG
+                    # for child in elements_node.children:
+                    #     if hasattr(child, 'value') and child.value == '<literals>':
+                    #         # Found the literals node, check its children
+                    #         for value_node in child.children:
+                    #             value_type = self.get_expression_type(value_node)
+                    #             if value_type and value_type != var_type:
+                    #                 # Convert base types to literal types for error message
+                    #                 literal_type = value_type + "literals" if value_type in ["pinch", "skim", "pasta"] else value_type
+                    #                 target_literal_type = var_type + "literals" if var_type in ["pinch", "skim", "pasta"] else var_type
+                    #                 self.errors.append(SemanticError(
+                    #                     code="TYPE_MISMATCH",
+                    #                     message=f"Type mismatch in array initialization of '{var_name}': cannot assign '{literal_type}' to '{target_literal_type}'",
+                    #                     line=line_num,
+                    #                     identifier=var_name
+                    #                 ))
             
             # Add to symbol table
-            self.current_scope.add(var_name, Symbol(var_name, "recipe", attributes))
+            symbol = Symbol(var_name, "recipe", attributes)
+            if element_ctr < dimension and element_ctr != 0:
+                self.errors.append(SemanticError(
+                    code="MISSING_ELEMENTS",
+                    message=f"Expected element count '{dimension}' received count '{element_ctr}'",
+                    line=line_num,
+                    identifier=var_name
+                ))
+            if element_ctr > dimension:
+                self.errors.append(SemanticError(
+                    code="TOO_MUCH_ELEMENTS",
+                    message=f"Expected element count '{dimension}' received count '{element_ctr}'",
+                    line=line_num,
+                    identifier=var_name
+                ))
+            if values:
+                symbol.set_value(values)
+            self.current_scope.add(var_name, symbol)
+
+
             
         except Exception as e:
             if 'var_name' in locals() and 'line_num' in locals():
@@ -704,7 +762,7 @@ class SemanticAnalyzer:
         else:
             self._handle_regular_declaration(node)
             
-        self.generic_visit(node)
+        #self.generic_visit(node)
     
     def visit_local_dec(self, node):
         print(f"\nProcessing local dec node in scope: {self.current_scope.debugName}")
@@ -785,10 +843,12 @@ class SemanticAnalyzer:
                 # Full function with return type
                 return_type = node.children[1].children[0].value
                 func_name = node.children[2].value
+                next_function = node.children[12]
             else:
                 # Hungry function (void return)
                 return_type = "void"
                 func_name = node.children[1].value
+                next_function = node.children[9]
             
             print(f"Found function: {func_name} with return type {return_type}")
 
@@ -815,6 +875,9 @@ class SemanticAnalyzer:
                 so i fucking turned commented it for now
                 will just add a checking later
             """
+
+            if next_function:
+                self.visit_function(next_function)
 
             # Create a new scope for the function body
             #old_scope = self.current_scope
@@ -1112,11 +1175,52 @@ class SemanticAnalyzer:
                         result = first_value.value.strip('"')
                         print(f"Found string literal: {result}")
             elif initial_node.node_type == 'id':
-                print(f"This is the fucking ID shi, they said to enhance this shi, it doesn't even work!")
-                symbol = self.lookup_symbol(initial_node.value)
-                if symbol:
+                #it fucking works now
+                tail_node = arg_node.children[1]
+
+
+                #check if the symbol exist, for fucking error checking alnhjsdljkasldhjkasas
+                if not self.lookup_symbol(initial_node.value):
+                    line_num = getattr(node, 'line_number', None)
+                    self.errors.append(SemanticError(
+                        code="UNDEFINED_IDENTIFIER",
+                        message=f"Identifier [{initial_node.value}] does not exist!",
+                        line=line_num,
+                        identifier=initial_node.value
+                    ))
+                    return
+                if self.lookup_symbol(initial_node.value).type == 'function':
+                    line_num = getattr(node, 'line_number', None)
+                    self.errors.append(SemanticError(
+                        code="FUNCTION_NOT_ALLOWED",
+                        message=f"Function [{initial_node.value}] is not allowed in SERVE call.",
+                        line=line_num,
+                        identifier=initial_node.value
+                    ))
+                    return
+                #NEED TO FUCKING CONFIRM IF ARRAYS AND FUNCTIONS CAN BE CALLED INSIDE THE DAMN SERVE
+                if tail_node.children:
+                    if tail_node.children[0].value == "[":
+                        #it's a fucking array <3 fuck this shi
+                        index_value = int(self._evaluate_expression(tail_node.children[1]))
+                        symbol = self.lookup_symbol(initial_node.value)
+                        listed_value = list(symbol.get_value())
+                        if index_value >= len(listed_value):
+                            line_num = getattr(node, 'line_number', None)
+                            var_name = initial_node.value
+                            self.errors.append(SemanticError(
+                                code="ARRAY_OUT_OF_BOUNDS",
+                                message=f"Accessed an index outside the allowed range. index[{index_value}]:range[{len(listed_value)-1}]",
+                                line=line_num,
+                                identifier=var_name
+                            ))
+                            return
+                        result = str(listed_value[index_value]).replace('"', '')
+                else:
+                    symbol = self.lookup_symbol(initial_node.value)
                     print(f"Found symbol: {symbol}")
                     result = str(symbol.get_value() if hasattr(symbol, 'get_value') else "")
+
             else:
                 print("acts as a fallback to do some shit[serve]")
         # Process any serve_tail concatenations
@@ -1140,12 +1244,53 @@ class SemanticAnalyzer:
                                 print(f"Concatenated string literal: {result}")
                             else:
                                 print("Hello World!")
-                        elif next_value.node_type == "id":
-                            symbol = self.lookup_symbol(next_value.value)
-                            if symbol:
-                                print(f"Found symbol for concatenation: {symbol}")
+                        elif next_value.node_type == 'id':
+                            # it fucking works now
+                            tail_node = next_value_node.children[1]
+
+                            # check if the symbol exist, for fucking error checking alnhjsdljkasldhjkasas
+                            if not self.lookup_symbol(next_value.value):
+                                line_num = getattr(node, 'line_number', None)
+                                self.errors.append(SemanticError(
+                                    code="UNDEFINED_IDENTIFIER",
+                                    message=f"Identifier [{next_value.value}] does not exist!",
+                                    line=line_num,
+                                    identifier=next_value.value
+                                ))
+                                return
+                            if self.lookup_symbol(next_value.value).type == 'function':
+                                line_num = getattr(node, 'line_number', None)
+                                self.errors.append(SemanticError(
+                                    code="FUNCTION_NOT_ALLOWED",
+                                    message=f"Function [{next_value.value}] is not allowed in SERVE call.",
+                                    line=line_num,
+                                    identifier=next_value.value
+                                ))
+                                return
+                            # NEED TO FUCKING CONFIRM IF ARRAYS AND FUNCTIONS CAN BE CALLED INSIDE THE DAMN SERVE
+                            if tail_node.children:
+                                if tail_node.children[0].value == "[":
+                                    # it's a fucking array <3 fuck this shi
+                                    index_value = int(self._evaluate_expression(tail_node.children[1]))
+                                    symbol = self.lookup_symbol(next_value.value)
+                                    listed_value = list(symbol.get_value())
+                                    if index_value >= len(listed_value):
+                                        line_num = getattr(node, 'line_number', None)
+                                        var_name = next_value.value
+                                        self.errors.append(SemanticError(
+                                            code="ARRAY_OUT_OF_BOUNDS",
+                                            message=f"Accessed an index outside the allowed range. index[{index_value}]:range[{len(listed_value) - 1}]",
+                                            line=line_num,
+                                            identifier=var_name
+                                        ))
+                                        return
+                                    result += str(listed_value[index_value]).replace('"', '')
+                            else:
+                                symbol = self.lookup_symbol(next_value.value)
+                                print(f"Found symbol: {symbol}")
                                 result += str(symbol.get_value() if hasattr(symbol, 'get_value') else "")
-                                print(f"Concatenated result: {result}")
+
+                            print(f"Concatenated result: {result}")
                     # Move to next serve_tail if exists
                     if len(serve_tail.children) > 2:
                         serve_tail = serve_tail.children[2]
@@ -1759,8 +1904,8 @@ class SemanticAnalyzer:
                     return self._evaluate_expression(node.children[0])
         
         # Handle value nodes
-        elif node.value == "<value>":
-            print("Processing <value> node")
+        elif node.value in ["<value>", "<value2>", "<value3>"]:
+            print(f"Processing {node.value} node")
             if len(node.children) >= 1:
                 # First child could be an ID or a literal
                 first_child = node.children[0]
@@ -1775,7 +1920,17 @@ class SemanticAnalyzer:
 
                 if hasattr(first_child, 'node_type') and first_child.node_type == "id":
                     # Look up the variable
+                    if not self.lookup_symbol(first_child.value):
+                        line_num = getattr(node, 'line_number', None)
+                        self.errors.append(SemanticError(
+                            code="UNDEFINED_IDENTIFIER",
+                            message=f"Identifier [{first_child.value}] does not exist!",
+                            line=line_num,
+                            identifier=first_child.value
+                        ))
+                        return None #testing
                     if node.children[1].children:
+                        #fucking function call
                         if node.children[1].children[0].value == '(':
 
                             symbol = self.lookup_symbol(first_child.value)
@@ -1844,10 +1999,42 @@ class SemanticAnalyzer:
                             self.symbol_tables.pop()
 
                             return return_val
-
+                        #this is the fucking array call
                         elif node.children[1].children[0].value == '[':
-                            #for array handling
-                            pass
+                            print("a"*100)
+                            #it's a fucking array <3 fuck this shi
+                            index_value = int(self._evaluate_expression(node.children[1].children[1]))
+                            symbol = self.lookup_symbol(first_child.value)
+                            listed_value = list(symbol.get_value())
+                            if index_value >= len(listed_value):
+                                line_num = getattr(node, 'line_number', None)
+                                var_name = first_child.value
+                                self.errors.append(SemanticError(
+                                    code="ARRAY_OUT_OF_BOUNDS",
+                                    message=f"Accessed an index outside the allowed range. index[{index_value}]:range[{len(listed_value) - 1}]",
+                                    line=line_num,
+                                    identifier=var_name
+                                ))
+                                return None
+                            final_val = listed_value[index_value]
+                            if symbol.attributes.get("element_type", "None") == 'pinch':
+                                final_val = int(final_val)
+                            elif symbol.attributes.get("element_type", "None") == 'skim':
+                                final_val = float(final_val)
+                            elif symbol.attributes.get("element_type", "None") == 'pasta':
+                                final_val = str(final_val).replace('"', "")
+                            else:
+                                line_num = getattr(node, 'line_number', None)
+                                var_name = first_child.value
+                                self.errors.append(SemanticError(
+                                    code="UNKNOWN_RECIPE_TYPE",
+                                    message=f"Undefined element_type[{symbol.attributes.get("element_type", "None")}]",
+                                    line=line_num,
+                                    identifier=var_name
+                                ))
+                                return None
+                            return final_val
+
                     else:
                         var_name = first_child.value
                         symbol = self.lookup_symbol(var_name)
@@ -1938,10 +2125,10 @@ class SemanticAnalyzer:
                 return left_value
         
         # Value nodes with IDs
-        elif node.value in ["<value2>", "<value3>"]:
-            print(f"Processing {node.value} node")
-            if node.children:
-                return self._evaluate_expression(node.children[0])
+        # elif node.value in ["<value2>", "<value3>"]:
+        #     print(f"Processing {node.value} node")
+        #     if node.children:
+        #         return self._evaluate_expression(node.children[0])
         
         # Catch-all for other node types: try first child
         elif node.children and len(node.children) > 0:
