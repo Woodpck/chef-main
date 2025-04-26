@@ -122,10 +122,10 @@ cfg = {
                             ["*"],
                             ["/"],
                             ["%"]],
-    
+
     "<value>": [["<literals>"],
                 ["id", "<value_id_tail>"]],
-    
+
     "<value_id_tail>": [["(", "<argument_list>", ")"],
                 ["[", "<recipe_index>", "]"],
                 ["λ"]],
@@ -160,14 +160,12 @@ cfg = {
     "<condition_tail>": [["<condition_operator>", "<condition_operand>", "<relational>"],
                         ["λ"]],
 
-    "<condition_operand>": [["<value>"],
-                            ["(", "<condition>", ")"],
+    # editted start
+    "<condition_operand>": [["<arithmetic_exp>"],
                             ["!", "(", "<condition>", ")"],
                             ["!!", "(", "<condition>", ")"]],
-    
-    "<condition_operator>": [["/"], # added operator
-                            ["%"],
-                            ["=="],
+    #editted end
+    "<condition_operator>": [["=="],
                             ["!="],
                             ["<"],
                             [">"],

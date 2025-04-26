@@ -87,6 +87,9 @@ class SymbolTable:
 # Updated SemanticAnalyzer class
 #---------------------------------------------------------------------
 class SemanticAnalyzer:
+    """
+    this fucking thing was never used, idk how you could fuck this up so badly
+
     def visit_return_statement(self, node):
         if not node.children or len(node.children) < 1:
             return
@@ -105,7 +108,9 @@ class SemanticAnalyzer:
                 ))
 
         # Original return statement checks
-        self._original_visit_return_statement(node)
+        self._original_visit_return_statement(node)"""
+
+
     def __init__(self):
         self.global_scope = SymbolTable(debugName="global")
         self.current_scope = self.global_scope
@@ -113,6 +118,7 @@ class SemanticAnalyzer:
         self.symbol_tables = [self.global_scope]
         self.current_function = None
         self.output_buffer = []  # Buffer to store output from serve statements
+        self.termination_code = 0
         # Define type compatibility rules
         self.type_compatibility = {
             "pinch": ["pinch"],           # Integers
@@ -172,7 +178,23 @@ class SemanticAnalyzer:
                 self.visit_serve_statement(node, parent)
             elif node.value == "make":
                 self.visit_make_statement(node, parent)
-            self.generic_visit(node)
+
+            if node.value == "spit":
+                # the spit on the main function a terminal, so why tf are you trying to access it through terminal checking, fucking bitch
+                return_val = parent.children[12]
+                """
+                    idk what y'll fucking want, i'll just add those 3 types of return
+                """
+                if not int(return_val.value) in [0,1]:
+                    self.errors.append(SemanticError(
+                        code="INVALID_TERMINATION_CODE",
+                        message="Program must be terminated using only these [1, 0]!",
+                        line=getattr(node, 'line_number', None)
+                    ))
+                    return None
+                self.termination_code = int(return_val.value)
+            else:
+                self.generic_visit(node)
 
     def generic_visit(self, node):
         for child in node.children:
@@ -876,7 +898,7 @@ class SemanticAnalyzer:
                 will just add a checking later
             """
 
-            if next_function:
+            if next_function:   
                 self.visit_function(next_function)
 
             # Create a new scope for the function body
@@ -945,59 +967,9 @@ class SemanticAnalyzer:
                     
                     if second_child.children and len(second_child.children) >= 2:
                         if second_child.children[0].value == "(":
-                            symbol = self.lookup_symbol(first_child.value)
-                            print(f"Found Function Call[symbol]={symbol}")
-                            argument_node = second_child.children[1]
-
-
-                            # Create a new scope for the function body
-                            old_scope = self.current_scope
-                            self.current_scope = SymbolTable(debugName=f"function_{first_child.value}", parent=old_scope)
-                            self.symbol_tables.append(self.current_scope)
-
-                            #needs to process parameters
-                            parameter_node = symbol.parameters
-                            while parameter_node.children and argument_node.children:
-                                #process the fucking parameter
-                                if parameter_node.children[0].value == ',':
-                                    data_type = parameter_node.children[1].children[0].value
-                                    data_name = parameter_node.children[2].value
-                                    parameter_node = parameter_node.children[3]
-                                else:
-                                    data_type = parameter_node.children[0].children[0].value
-                                    data_name = parameter_node.children[1].value
-                                    parameter_node = parameter_node.children[2]
-                                #assign the fucking argument to the fucking parameter
-
-                                if argument_node.children[0].value == ',':
-                                    data_val = self._evaluate_expression(argument_node.children[1])
-                                    argument_node = argument_node.children[2]
-                                else:
-                                    data_val = self._evaluate_expression(argument_node.children[0])
-                                    argument_node = argument_node.children[1]
-                                new_symbol = Symbol(data_name, data_type)
-                                new_symbol.set_value(data_val)
-                                self.current_scope.add(data_name, new_symbol)
-
-                            #add error handling here for the parameter and arguments
-                            if parameter_node.children:
-                                self.errors.append(SemanticError(
-                                    code="MISSING_ARGUMENTS",
-                                    message="Doesn't meet the required number of arguments!",
-                                    line=getattr(node, 'line_number', None)
-                                ))
-                            if argument_node.children:
-                                self.errors.append(SemanticError(
-                                    code="TOO_MANY_ARGUMENTS",
-                                    message="Too many arguments provided to function call!",
-                                    line=getattr(node, 'line_number', None)
-                                ))
-
-                            for node in symbol.value:
-                                self.generic_visit(node)
-
-                            self.current_scope = old_scope
-                            self.symbol_tables.pop()
+                            return_val = self.get_function_return(first_child.value, second_child.children[1])
+                            if not return_val:
+                                return None
 
 
                         else:
@@ -1122,6 +1094,76 @@ class SemanticAnalyzer:
         if node.value == '<statement>':
             self.generic_visit(node)
 
+    def get_function_return(self, var_name, node):
+        symbol = self.lookup_symbol(var_name)
+        print(f"Found Function Call[symbol]={symbol}")
+        if symbol.attributes.get("return_type", "none") == 'void':
+            self.errors.append(SemanticError(
+                code="VOID_FUNCTION",
+                message="Void functions does not return a value!",
+                line=getattr(node, 'line_number', None)
+            ))
+            return None
+
+        argument_node = node
+        # Create a new scope for the function body
+        old_scope = self.current_scope
+        self.current_scope = SymbolTable(debugName=f"function_{var_name}", parent=old_scope)
+        self.symbol_tables.append(self.current_scope)
+
+        # needs to process parameters
+        parameter_node = symbol.parameters
+        while parameter_node.children and argument_node.children:
+            # process the fucking parameter
+            if parameter_node.children[0].value == ',':
+                data_type = parameter_node.children[1].children[0].value
+                data_name = parameter_node.children[2].value
+                parameter_node = parameter_node.children[3]
+            else:
+                data_type = parameter_node.children[0].children[0].value
+                data_name = parameter_node.children[1].value
+                parameter_node = parameter_node.children[2]
+            # assign the fucking argument to the fucking parameter
+
+            if argument_node.children[0].value == ',':
+                data_val = self._evaluate_expression(argument_node.children[1])
+                argument_node = argument_node.children[2]
+            else:
+                data_val = self._evaluate_expression(argument_node.children[0])
+                argument_node = argument_node.children[1]
+            new_symbol = Symbol(data_name, data_type)
+            new_symbol.set_value(data_val)
+            self.current_scope.add(data_name, new_symbol)
+
+        # add error handling here for the parameter and arguments
+        if parameter_node.children:
+            self.errors.append(SemanticError(
+                code="MISSING_ARGUMENTS",
+                message="Doesn't meet the required number of arguments!",
+                line=getattr(node, 'line_number', None)
+            ))
+            return None
+        if argument_node.children:
+            self.errors.append(SemanticError(
+                code="TOO_MANY_ARGUMENTS",
+                message="Too many arguments provided to function call!",
+                line=getattr(node, 'line_number', None)
+            ))
+            return None
+
+        return_node = symbol.value[2]
+        # did it this way so that i don't need to add the spit on the visit_statement, fuck that
+        self.generic_visit(symbol.value[0])
+        self.generic_visit(symbol.value[1])
+
+        return_val = self._evaluate_expression(return_node.children[1])
+
+        self.current_scope = old_scope
+        self.symbol_tables.pop()
+
+        return return_val
+
+
     def visit_serve_statement(self, node, parent=None):
         """Handle the 'serve' statement (function call)"""
         print("\n" + "="*50)
@@ -1189,15 +1231,6 @@ class SemanticAnalyzer:
                         identifier=initial_node.value
                     ))
                     return
-                if self.lookup_symbol(initial_node.value).type == 'function':
-                    line_num = getattr(node, 'line_number', None)
-                    self.errors.append(SemanticError(
-                        code="FUNCTION_NOT_ALLOWED",
-                        message=f"Function [{initial_node.value}] is not allowed in SERVE call.",
-                        line=line_num,
-                        identifier=initial_node.value
-                    ))
-                    return
                 #NEED TO FUCKING CONFIRM IF ARRAYS AND FUNCTIONS CAN BE CALLED INSIDE THE DAMN SERVE
                 if tail_node.children:
                     if tail_node.children[0].value == "[":
@@ -1216,6 +1249,10 @@ class SemanticAnalyzer:
                             ))
                             return
                         result = str(listed_value[index_value]).replace('"', '')
+                    elif tail_node.children[0].value == "(":
+                        return_val = self.get_function_return(initial_node.value, tail_node.children[1])
+                        if return_val:
+                            result = str(return_val).replace('"', '')
                 else:
                     symbol = self.lookup_symbol(initial_node.value)
                     print(f"Found symbol: {symbol}")
@@ -1258,15 +1295,6 @@ class SemanticAnalyzer:
                                     identifier=next_value.value
                                 ))
                                 return
-                            if self.lookup_symbol(next_value.value).type == 'function':
-                                line_num = getattr(node, 'line_number', None)
-                                self.errors.append(SemanticError(
-                                    code="FUNCTION_NOT_ALLOWED",
-                                    message=f"Function [{next_value.value}] is not allowed in SERVE call.",
-                                    line=line_num,
-                                    identifier=next_value.value
-                                ))
-                                return
                             # NEED TO FUCKING CONFIRM IF ARRAYS AND FUNCTIONS CAN BE CALLED INSIDE THE DAMN SERVE
                             if tail_node.children:
                                 if tail_node.children[0].value == "[":
@@ -1285,6 +1313,10 @@ class SemanticAnalyzer:
                                         ))
                                         return
                                     result += str(listed_value[index_value]).replace('"', '')
+                                elif tail_node.children[0].value == "(":
+                                    return_val = self.get_function_return(next_value.value, tail_node.children[1])
+                                    if return_val:
+                                        result += str(return_val).replace('"', '')
                             else:
                                 symbol = self.lookup_symbol(next_value.value)
                                 print(f"Found symbol: {symbol}")
@@ -1689,17 +1721,17 @@ class SemanticAnalyzer:
         # WHY ARE YOU FUCKING CHEKCING THE ID, INSTEAD OF A FUCKING CONDITION!??????? DO YOU EVEN KNOW THE SEQUENCE OF YOUR FUCKING SYMBOLSS!??? PARSE TREEE? AHJJJJJJJJASDJKHSAJKD
 
         condition_expr = node.children[7]
-        condition_type = self.get_condition_type(condition_expr)
-        print(condition_type + " " + "="*50)
+        #condition_type = self.get_condition_type(condition_expr)
+        #print(condition_type + " " + "="*50)
         eval_result = self._evaluate_condition(condition_expr)
         print(f"For Condition Evaluation := " + str(eval_result))
-        if not condition_type and condition_type not in ["pinch", "skim", "bool"]:
-            line_num = getattr(condition_expr, 'line_number', None)
-            self.errors.append(SemanticError(
-                code="INVALID_CONDITION",
-                message=f"Loop condition must evaluate to a boolean compatible type, got '{condition_type}'",
-                line=line_num
-            ))
+        # if not condition_type and condition_type not in ["pinch", "skim", "bool"]:
+        #     line_num = getattr(condition_expr, 'line_number', None)
+        #     self.errors.append(SemanticError(
+        #         code="INVALID_CONDITION",
+        #         message=f"Loop condition must evaluate to a boolean compatible type, got '{condition_type}'",
+        #         line=line_num
+        #     ))
 
         if eval_result:
             #execute code block
@@ -2186,33 +2218,37 @@ class SemanticAnalyzer:
                     return self._evaluate_condition(node.children[0])
 
         # Handle value nodes
-        elif node.value == "<value>":
-            print("Processing <value> node")
-            if len(node.children) >= 1:
-                # First child could be an ID or a literal
-                first_child = node.children[0]
+        elif node.value == "<arithmetic_exp>":
+            print("Processing <arithmetic_exp> node")
+            eval_result = self._evaluate_expression(node)
+            return eval_result
 
-                # Special handling for parenthesized expressions
-                if hasattr(first_child, 'value') and first_child.value == "(":
-                    if len(node.children) >= 3:  # Should have "(", expr, ")"
-                        expr_node = node.children[1]
-                        value = self._evaluate_condition(expr_node)
-                        print(f"Parenthesized value: {value}")
-                        return value
 
-                if hasattr(first_child, 'node_type') and first_child.node_type == "id":
-                    # Look up the variable
-                    var_name = first_child.value
-                    symbol = self.lookup_symbol(var_name)
-                    if symbol:
-                        print(f"Found variable {var_name} with value: {symbol.get_value()}")
-                        return symbol.get_value()
-                    else:
-                        print(f"Variable not found: {var_name}")
-                        return None
-                else:
-                    # For other types, evaluate the child
-                    return self._evaluate_condition(first_child)
+            # if len(node.children) >= 1:
+            #     # First child could be an ID or a literal
+            #     first_child = node.children[0]
+            #
+            #     # Special handling for parenthesized expressions
+            #     if hasattr(first_child, 'value') and first_child.value == "(":
+            #         if len(node.children) >= 3:  # Should have "(", expr, ")"
+            #             expr_node = node.children[1]
+            #             value = self._evaluate_condition(expr_node)
+            #             print(f"Parenthesized value: {value}")
+            #             return value
+            #
+            #     if hasattr(first_child, 'node_type') and first_child.node_type == "id":
+            #         # Look up the variable
+            #         var_name = first_child.value
+            #         symbol = self.lookup_symbol(var_name)
+            #         if symbol:
+            #             print(f"Found variable {var_name} with value: {symbol.get_value()}")
+            #             return symbol.get_value()
+            #         else:
+            #             print(f"Variable not found: {var_name}")
+            #             return None
+            #     else:
+            #         # For other types, evaluate the child
+            #         return self._evaluate_condition(first_child)
 
         # Handle value_id_tail nodes
         elif node.value == "<value_id_tail>":
