@@ -67,7 +67,10 @@
                 <div id="output-tab" class="tab-content {% if active_tab == 'output' %}active{% endif %}">
                     <div class="output-block">
                         <p id="output-content" class="{% if output_text %}output-message{% else %}no-output-message{% endif %}">
-                            {% if output_text %}{{ output_text }}{% else %}No output generated yet{% endif %}
+                            {% if output_text %}{{ output_text }} {% else %}No output generated yet{% endif %}
+                        </p>
+                        <p id="stats">
+
                         </p>
                     </div>
                 </div>
@@ -273,6 +276,10 @@
                         
                         // Update output content
                         const outputElement = document.getElementById('output-content');
+                        const statsElement = document.getElementById('stats');
+                        if (data.time_execution){
+                            statsElement.textContent = "Execution Time: " + data.time_execution.toFixed(2) + " second";
+                        }
                         if (data.output_text) {
                             outputElement.className = 'output-message';
                             outputElement.textContent = data.output_text;
@@ -353,20 +360,6 @@
             // Initialize line numbers on load
             updateLineNumbers();
         });
-    </script>
-    <script>
-        function checkNode() {
-            fetch("/check-node")
-                .then(res => res.json())
-                .then(data => {
-                    if (data.trigger_prompt) {
-                        const value = prompt("Enter value:");
-                        document.getElementById("output").innerText = "You entered: " + value;
-                    } else {
-                        document.getElementById("output").innerText = "No prompt needed.";
-                    }
-                });
-        }
     </script>
 </body>
 </html>
