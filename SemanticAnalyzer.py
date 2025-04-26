@@ -29,8 +29,8 @@ class Symbol:
 
     def __repr__(self):
         if self.type == 'function':
-            if self.parameters:
-                return f"Symbol(name={self.name}, type={self.type}, value=<array of {len(self.value)} elements>, attributes={self.attributes}, parameters={self.parameters})"
+            if self.parameters.children:
+                return f"Symbol(name={self.name}, type={self.type}, value=<array of {len(self.value)} elements>, attributes={self.attributes}, parameters={self.parameters.value})"
             else:
                 return f"Symbol(name={self.name}, type={self.type}, value=<array of {len(self.value)} elements>, attributes={self.attributes}, parameters=None)"
         else:
@@ -802,9 +802,11 @@ class SemanticAnalyzer:
             #     return
             if node.children[0].value == "hungry":
                 important_nodes = [node.children[6], node.children[7]]
+                parameter_node = node.children[3]
             else:
-                important_nodes = [node.children[7], node.children[8], node.children[9] ]
-            symbol = Symbol(func_name, symbol_type="function", attributes={"return_type": return_type}, parameters="")
+                important_nodes = [node.children[7], node.children[8], node.children[9]]
+                parameter_node = node.children[4]
+            symbol = Symbol(func_name, symbol_type="function", attributes={"return_type": return_type}, parameters=parameter_node)
             symbol.set_value(important_nodes)
             self.current_scope.add(func_name, symbol)
 
@@ -881,10 +883,59 @@ class SemanticAnalyzer:
                     if second_child.children and len(second_child.children) >= 2:
                         if second_child.children[0].value == "(":
                             symbol = self.lookup_symbol(first_child.value)
+                            print(f"Found Function Call[symbol]={symbol}")
+                            argument_node = second_child.children[1]
+
+
+                            # Create a new scope for the function body
+                            old_scope = self.current_scope
+                            self.current_scope = SymbolTable(debugName=f"function_{first_child.value}", parent=old_scope)
+                            self.symbol_tables.append(self.current_scope)
+
+                            #needs to process parameters
+                            parameter_node = symbol.parameters
+                            while parameter_node.children and argument_node.children:
+                                #process the fucking parameter
+                                if parameter_node.children[0].value == ',':
+                                    data_type = parameter_node.children[1].children[0].value
+                                    data_name = parameter_node.children[2].value
+                                    parameter_node = parameter_node.children[3]
+                                else:
+                                    data_type = parameter_node.children[0].children[0].value
+                                    data_name = parameter_node.children[1].value
+                                    parameter_node = parameter_node.children[2]
+                                #assign the fucking argument to the fucking parameter
+
+                                if argument_node.children[0].value == ',':
+                                    data_val = self._evaluate_expression(argument_node.children[1])
+                                    argument_node = argument_node.children[2]
+                                else:
+                                    data_val = self._evaluate_expression(argument_node.children[0])
+                                    argument_node = argument_node.children[1]
+                                new_symbol = Symbol(data_name, data_type)
+                                new_symbol.set_value(data_val)
+                                self.current_scope.add(data_name, new_symbol)
+
+                            #add error handling here for the parameter and arguments
+                            if parameter_node.children:
+                                self.errors.append(SemanticError(
+                                    code="MISSING_ARGUMENTS",
+                                    message="Doesn't meet the required number of arguments!",
+                                    line=getattr(node, 'line_number', None)
+                                ))
+                            if argument_node.children:
+                                self.errors.append(SemanticError(
+                                    code="TOO_MANY_ARGUMENTS",
+                                    message="Too many arguments provided to function call!",
+                                    line=getattr(node, 'line_number', None)
+                                ))
+
                             for node in symbol.value:
                                 self.generic_visit(node)
 
-                            print(f"Found Function Call[symbol]={symbol}")
+                            self.current_scope = old_scope
+                            self.symbol_tables.pop()
+
 
                         else:
                             # Unwrap the real operator string
@@ -965,9 +1016,9 @@ class SemanticAnalyzer:
                                 else:
                                     print(f"\nWARNING: Expression evaluation returned None for {var_name}")
                                     print("Expression node structure:")
-                                    self._print_node_structure(expr_node)
+                                    #self._print_node_structure(expr_node)
                                     print("\nCurrent scope symbols:")
-                                    self._print_scope_symbols()
+                                    #self._print_scope_symbols()
                             elif raw_op in ["++", "--"]:
                                 print(f"\nFound inc_dec operator: {raw_op}")
 
@@ -1004,7 +1055,8 @@ class SemanticAnalyzer:
                 elif var_op == '--':
                     symbol.set_value((symbol.get_value() or 0) - 1)
         # Continue with generic visit to process other types of statements
-        if node.children[0].value in ["serve", "make", "for", "simmer", "keepmix", "taste", "flip", "elif", "mix"]:
+        #if node.children[0].value in ["serve", "make", "for", "simmer", "keepmix", "taste", "flip", "elif", "mix"]:
+        if node.value == '<statement>':
             self.generic_visit(node)
 
     def visit_serve_statement(self, node, parent=None):
@@ -1720,17 +1772,91 @@ class SemanticAnalyzer:
                         value = self._evaluate_expression(expr_node)
                         print(f"Parenthesized value: {value}")
                         return value
-                
+
                 if hasattr(first_child, 'node_type') and first_child.node_type == "id":
                     # Look up the variable
-                    var_name = first_child.value
-                    symbol = self.lookup_symbol(var_name)
-                    if symbol:
-                        print(f"Found variable {var_name} with value: {symbol.get_value()}")
-                        return symbol.get_value()
+                    if node.children[1].children:
+                        if node.children[1].children[0].value == '(':
+
+                            symbol = self.lookup_symbol(first_child.value)
+                            print(f"Found Function Call[symbol]={symbol}")
+                            if symbol.attributes.get("return_type", "none") == 'void':
+                                self.errors.append(SemanticError(
+                                    code="VOID_FUNCTION",
+                                    message="Void functions does not return a value!",
+                                    line=getattr(node, 'line_number', None)
+                                ))
+
+                            argument_node = node.children[1].children[1]
+                            # Create a new scope for the function body
+                            old_scope = self.current_scope
+                            self.current_scope = SymbolTable(debugName=f"function_{first_child.value}",
+                                                             parent=old_scope)
+                            self.symbol_tables.append(self.current_scope)
+
+                            # needs to process parameters
+                            parameter_node = symbol.parameters
+                            while parameter_node.children and argument_node.children:
+                                # process the fucking parameter
+                                if parameter_node.children[0].value == ',':
+                                    data_type = parameter_node.children[1].children[0].value
+                                    data_name = parameter_node.children[2].value
+                                    parameter_node = parameter_node.children[3]
+                                else:
+                                    data_type = parameter_node.children[0].children[0].value
+                                    data_name = parameter_node.children[1].value
+                                    parameter_node = parameter_node.children[2]
+                                # assign the fucking argument to the fucking parameter
+
+                                if argument_node.children[0].value == ',':
+                                    data_val = self._evaluate_expression(argument_node.children[1])
+                                    argument_node = argument_node.children[2]
+                                else:
+                                    data_val = self._evaluate_expression(argument_node.children[0])
+                                    argument_node = argument_node.children[1]
+                                new_symbol = Symbol(data_name, data_type)
+                                new_symbol.set_value(data_val)
+                                self.current_scope.add(data_name, new_symbol)
+
+                            # add error handling here for the parameter and arguments
+                            if parameter_node.children:
+                                self.errors.append(SemanticError(
+                                    code="MISSING_ARGUMENTS",
+                                    message="Doesn't meet the required number of arguments!",
+                                    line=getattr(node, 'line_number', None)
+                                ))
+                            if argument_node.children:
+                                self.errors.append(SemanticError(
+                                    code="TOO_MANY_ARGUMENTS",
+                                    message="Too many arguments provided to function call!",
+                                    line=getattr(node, 'line_number', None)
+                                ))
+
+                            return_node = symbol.value[2]
+                            #did it this way so that i don't need to add the spit on the visit_statement, fuck that
+                            self.generic_visit(symbol.value[0])
+                            self.generic_visit(symbol.value[1])
+
+
+                            return_val = self._evaluate_expression(return_node.children[1])
+
+                            self.current_scope = old_scope
+                            self.symbol_tables.pop()
+
+                            return return_val
+
+                        elif node.children[1].children[0].value == '[':
+                            #for array handling
+                            pass
                     else:
-                        print(f"Variable not found: {var_name}")
-                        return None
+                        var_name = first_child.value
+                        symbol = self.lookup_symbol(var_name)
+                        if symbol:
+                            print(f"Found variable {var_name} with value: {symbol.get_value()}")
+                            return symbol.get_value()
+                        else:
+                            print(f"Variable not found: {var_name}")
+                            return None
                 else:
                     # For other types, evaluate the child
                     return self._evaluate_expression(first_child)
