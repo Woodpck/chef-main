@@ -966,8 +966,9 @@ class SemanticAnalyzer:
                     print(f"Statement_id_tail children: {[child.value if hasattr(child, 'value') else 'No value' for child in second_child.children]}")
                     
                     if second_child.children and len(second_child.children) >= 2:
+
                         if second_child.children[0].value == "(":
-                            return_val = self.get_function_return(first_child.value, second_child.children[1])
+                            return_val = self.get_function_return(first_child.value, second_child.children[1], True)
                             if not return_val:
                                 return None
 
@@ -1094,16 +1095,17 @@ class SemanticAnalyzer:
         if node.value == '<statement>':
             self.generic_visit(node)
 
-    def get_function_return(self, var_name, node):
+    def get_function_return(self, var_name, node, is_void=False):
         symbol = self.lookup_symbol(var_name)
         print(f"Found Function Call[symbol]={symbol}")
-        if symbol.attributes.get("return_type", "none") == 'void':
-            self.errors.append(SemanticError(
-                code="VOID_FUNCTION",
-                message="Void functions does not return a value!",
-                line=getattr(node, 'line_number', None)
-            ))
-            return None
+        if not is_void:
+            if symbol.attributes.get("return_type", "none") == 'void':
+                self.errors.append(SemanticError(
+                    code="VOID_FUNCTION",
+                    message="Void functions does not return a value!",
+                    line=getattr(node, 'line_number', None)
+                ))
+                return None
 
         argument_node = node
         # Create a new scope for the function body
@@ -1151,17 +1153,19 @@ class SemanticAnalyzer:
             ))
             return None
 
-        return_node = symbol.value[2]
         # did it this way so that i don't need to add the spit on the visit_statement, fuck that
         self.generic_visit(symbol.value[0])
         self.generic_visit(symbol.value[1])
 
-        return_val = self._evaluate_expression(return_node.children[1])
+        return_val = ""
+        if not is_void:
+            return_node = symbol.value[2]
+            return_val = self._evaluate_expression(return_node.children[1])
 
         self.current_scope = old_scope
         self.symbol_tables.pop()
-
-        return return_val
+        if not is_void:
+            return return_val
 
 
     def visit_serve_statement(self, node, parent=None):
@@ -1835,6 +1839,52 @@ class SemanticAnalyzer:
                             is_warning=True
                         ))
 
+    def _process_arithmetic_exp_tail(self, tail_node, accumulated_value):
+        if tail_node.value == "<arithmetic_exp_tail>" and hasattr(tail_node, 'children') and tail_node.children:
+            if tail_node.children[0].value != "λ":
+                operator_node = tail_node.children[0]  # <additive_operator>
+                term_node = tail_node.children[1]  # <term>
+                next_tail_node = tail_node.children[2]  # <arithmetic_exp_tail> (next chain)
+
+                if operator_node.children:
+                    actual_operator = operator_node.children[0].value
+                    print(f"Additive operator: {actual_operator}")
+                else:
+                    actual_operator = operator_node.value
+                    print(f"Direct additive operator: {actual_operator}")
+
+                right_value = self._evaluate_expression(term_node)
+                print(f"Next term value: {right_value}")
+
+                result = self._apply_operator(actual_operator, accumulated_value, right_value)
+                print(f"Result after applying additive operator: {result}")
+
+                return self._process_arithmetic_exp_tail(next_tail_node, result)
+        return accumulated_value
+
+    def _process_term_tail(self, tail_node, accumulated_value):
+        if tail_node.value == "<term_tail>" and hasattr(tail_node, 'children') and tail_node.children:
+            if tail_node.children[0].value != "λ":
+                operator_node = tail_node.children[0]  # <multiplicative_operator>
+                factor_node = tail_node.children[1]  # <factor>
+                next_tail_node = tail_node.children[2]  # <term_tail> (next chain)
+
+                if operator_node.children:
+                    actual_operator = operator_node.children[0].value
+                    print(f"Multiplicative operator: {actual_operator}")
+                else:
+                    actual_operator = operator_node.value
+                    print(f"Direct multiplicative operator: {actual_operator}")
+
+                right_value = self._evaluate_expression(factor_node)
+                print(f"Next factor value: {right_value}")
+
+                result = self._apply_operator(actual_operator, accumulated_value, right_value)
+                print(f"Result after applying multiplicative operator: {result}")
+
+                return self._process_term_tail(next_tail_node, result)
+        return accumulated_value
+
     def _evaluate_expression(self, node):
         if not node:
             return None
@@ -2113,62 +2163,116 @@ class SemanticAnalyzer:
             if node.value == "<literals>" and node.children:
                 return self._evaluate_expression(node.children[0])
         
-        # Handle <arithmetic_exp> nodes 
+        # Handle <arithmetic_exp> nodes
         elif node.value == "<arithmetic_exp>":
             print("Processing <arithmetic_exp> node")
             if len(node.children) >= 2:
-                left_node = node.children[0]
-                tail_node = node.children[1]
-                
-                left_value = self._evaluate_expression(left_node)
-                print(f"Arithmetic left value: {left_value}")
-                
-                if tail_node.value == "<arithmetic_tail>" and hasattr(tail_node, 'children') and tail_node.children:
-                    if tail_node.children[0].value != "λ":  # Make sure it's not empty
-                        # Extract the actual operator, similar to above
-                        operator_node = tail_node.children[0]
-                        actual_operator = None
-                        
-                        if operator_node.value == "<arithmetic_operator>" and operator_node.children:
-                            actual_operator = operator_node.children[0].value
-                            print(f"Extracted arithmetic operator: {actual_operator}")
-                        else:
-                            actual_operator = operator_node.value
-                            print(f"Direct arithmetic operator: {actual_operator}")
-                        
-                        right_node = tail_node.children[1]
-                        right_value = self._evaluate_expression(right_node)
-                        print(f"Arithmetic right value: {right_value}")
-                        
-                        if left_value is not None and right_value is not None and actual_operator:
-                            result = self._apply_operator(actual_operator, left_value, right_value)
-                            print(f"Arithmetic result: {result}")
-                            
-                            # Check for additional operations in the chain
-                            if len(tail_node.children) > 2:
-                                next_tail = tail_node.children[2]
-                                if next_tail.value == "<arithmetic_tail>" and next_tail.children and next_tail.children[0].value != "λ":
-                                    # Recursively process the next part using our current result as the left value
-                                    return self._process_arithmetic_tail(next_tail, result)
-                            
-                            return result
-                
-                # If no operator or evaluation failed, return left value
-                return left_value
-        
-        # Value nodes with IDs
-        # elif node.value in ["<value2>", "<value3>"]:
-        #     print(f"Processing {node.value} node")
-        #     if node.children:
-        #         return self._evaluate_expression(node.children[0])
-        
-        # Catch-all for other node types: try first child
+                term_node = node.children[0] # this should be the term
+                exp_tail_node = node.children[1]
+
+                left_value = self._evaluate_expression(term_node)
+                print(f"Initial term value: {left_value}")
+
+                return self._process_arithmetic_exp_tail(exp_tail_node, left_value)
+            else:
+                print("Unexpected structure in <arithmetic_exp>")
+                return None
+        elif node.value == "<term>":
+            print("Processing <term> node")
+            if len(node.children) >= 2:
+                factor_node = node.children[0]  # <factor>
+                term_tail_node = node.children[1]  # <term_tail>
+
+                left_value = self._evaluate_expression(factor_node)
+                print(f"Initial factor value: {left_value}")
+
+                return self._process_term_tail(term_tail_node, left_value)
+            else:
+                print("Unexpected structure in <term>")
+                return None
+        elif node.value == "<factor>":
+            print("Processing <factor> node")
+            if not node.children:
+                print("Empty <factor> node")
+                return None
+
+            first_child = node.children[0]
+
+            if first_child.value == "(":
+                # It's a parenthesis group
+                expression_node = node.children[1]  # <arithmetic_exp> inside the ( )
+                closing_parenthesis = node.children[2]  # Should be ')', but you usually don't need it
+
+                print("Found parenthesis: evaluating inner expression")
+                result = self._evaluate_expression(expression_node)
+                print(f"Result of inner parenthesis expression: {result}")
+                return result
+            else:
+                # It's just a simple <value2> (normal value)
+                return self._evaluate_expression(first_child)
+
         elif node.children and len(node.children) > 0:
             print(f"Processing unrecognized node type: {node.value}, trying first child")
             return self._evaluate_expression(node.children[0])
         
         print(f"Unable to evaluate expression node: {node.value}")
         return None
+
+    def _process_logical_or_tail(self, tail_node, left_value):
+        if not tail_node or not tail_node.children or tail_node.children[0].value == "λ":
+            return left_value
+
+        if tail_node.children[0].value == "??":
+            right_node = tail_node.children[1]
+            right_value = self._evaluate_condition(right_node)
+            combined = left_value or right_value
+            return self._process_logical_or_tail(tail_node.children[2], combined)
+        return left_value
+
+    def _process_logical_and_tail(self, tail_node, left_value):
+        if not tail_node or not tail_node.children or tail_node.children[0].value == "λ":
+            return left_value
+
+        if tail_node.children[0].value == "&&":
+            right_node = tail_node.children[1]
+            right_value = self._evaluate_condition(right_node)
+            combined = left_value and right_value
+            return self._process_logical_or_tail(tail_node.children[2], combined)
+        return left_value
+
+    def _process_equality_tail(self, tail_node, left_value):
+        if not tail_node or not tail_node.children or tail_node.children[0].value == "λ":
+            return left_value
+
+        right_node = tail_node.children[1]
+        right_value = self._evaluate_condition(right_node)
+        if tail_node.children[0].value == "==":
+            combined = left_value == right_value
+            return self._process_logical_or_tail(tail_node.children[2], combined)
+        elif tail_node.children[0].value == "!=":
+            combined = left_value != right_value
+            return self._process_logical_or_tail(tail_node.children[2], combined)
+        return left_value
+
+    def _process_relational_tail(self, tail_node, left_value):
+        if not tail_node or not tail_node.children or tail_node.children[0].value == "λ":
+            return left_value
+
+        right_node = tail_node.children[1]
+        right_value = self._evaluate_condition(right_node)
+        if tail_node.children[0].value == "<":
+            combined = left_value < right_value
+            return self._process_logical_or_tail(tail_node.children[2], combined)
+        elif tail_node.children[0].value == "<=":
+            combined = left_value <= right_value
+            return self._process_logical_or_tail(tail_node.children[2], combined)
+        if tail_node.children[0].value == ">":
+            combined = left_value > right_value
+            return self._process_logical_or_tail(tail_node.children[2], combined)
+        elif tail_node.children[0].value == ">=":
+            combined = left_value >= right_value
+            return self._process_logical_or_tail(tail_node.children[2], combined)
+        return left_value
 
     def _evaluate_condition(self, node):
         if not node:
@@ -2184,71 +2288,90 @@ class SemanticAnalyzer:
             for i, child in enumerate(node.children[:3]):  # Show first 3 children for brevity
                 print(f"Child {i}: {child.value if hasattr(child, 'value') else 'No value'}")
 
-        # Handle condition nodes
+        # Handle <condition> node
         if node.value == "<condition>":
             print("Processing <condition> node")
             if len(node.children) >= 2:
-                operand_node = node.children[0]  # First child is <condition_operand>
-                tail_node = node.children[1]  # Second child is <condition_tail>
+                left_node = node.children[0]
+                tail_node = node.children[1]
 
-                # Evaluate the first operand
-                left_value = self._evaluate_condition(operand_node)
-                print(f"Left operand value: {left_value}")
-
-                # Process any operations in the expression tail
+                left_value = self._evaluate_condition(left_node)
                 if left_value is not None:
-                    result = self._process_condition_tail(tail_node, left_value)
-                    return result
+                    return self._process_condition_tail(tail_node, left_value)
                 return left_value
 
-        # Handle condition_operand nodes
+        # Handle <condition_operand> node
         elif node.value == "<condition_operand>":
             print("Processing <condition_operand> node")
             if node.children:
-                # Check if this is a parenthesized expression
+                # Handle parenthesized, ! (negate), !! (double negate)
                 if len(node.children) >= 3 and node.children[0].value == "(":
-                    print("Found parenthesized expression")
-                    # The actual expression is the second child (index 1)
                     expr_node = node.children[1]
-                    value = self._evaluate_condition(expr_node)
-                    print(f"Parenthesized expression value: {value}")
-                    return value
+                    return self._evaluate_condition(expr_node)
+                elif len(node.children) >= 4 and node.children[0].value in ["!", "!!"]:
+                    negate_type = node.children[0].value
+                    expr_node = node.children[2]
+                    result = self._evaluate_condition(expr_node)
+                    if negate_type == "!":
+                        return not result
+                    elif negate_type == "!!":
+                        return bool(result)
                 else:
-                    # Regular operand, evaluate normally
                     return self._evaluate_condition(node.children[0])
+
+        # Handle <logical_or> node
+        elif node.value == "<logical_or>":
+            print("Processing <logical_or> node")
+            if len(node.children) >= 2:
+                left_node = node.children[0]
+                tail_node = node.children[1]
+
+                left_value = self._evaluate_condition(left_node)
+                return self._process_logical_or_tail(tail_node, left_value)
+            else:
+                return self._evaluate_condition(node.children[0])
+
+        # Handle <logical_and> node
+        elif node.value == "<logical_and>":
+            print("Processing <logical_and> node")
+            if len(node.children) >= 2:
+                left_node = node.children[0]
+                tail_node = node.children[1]
+
+                left_value = self._evaluate_condition(left_node)
+                return self._process_logical_and_tail(tail_node, left_value)
+            else:
+                return self._evaluate_condition(node.children[0])
+
+        # Handle <equality> node
+        elif node.value == "<equality>":
+            print("Processing <equality> node")
+            if len(node.children) >= 2:
+                left_node = node.children[0]
+                tail_node = node.children[1]
+
+                left_value = self._evaluate_condition(left_node)
+                return self._process_equality_tail(tail_node, left_value)
+            else:
+                return self._evaluate_condition(node.children[0])
+
+        # Handle <relational> node
+        elif node.value == "<relational>":
+            print("Processing <relational> node")
+            if len(node.children) >= 2:
+                left_node = node.children[0]
+                tail_node = node.children[1]
+
+                left_value = self._evaluate_expression(left_node)  # Notice: call arithmetic eval!
+                return self._process_relational_tail(tail_node, left_value)
+            else:
+                return self._evaluate_expression(node.children[0])
 
         # Handle value nodes
         elif node.value == "<arithmetic_exp>":
             print("Processing <arithmetic_exp> node")
             eval_result = self._evaluate_expression(node)
             return eval_result
-
-
-            # if len(node.children) >= 1:
-            #     # First child could be an ID or a literal
-            #     first_child = node.children[0]
-            #
-            #     # Special handling for parenthesized expressions
-            #     if hasattr(first_child, 'value') and first_child.value == "(":
-            #         if len(node.children) >= 3:  # Should have "(", expr, ")"
-            #             expr_node = node.children[1]
-            #             value = self._evaluate_condition(expr_node)
-            #             print(f"Parenthesized value: {value}")
-            #             return value
-            #
-            #     if hasattr(first_child, 'node_type') and first_child.node_type == "id":
-            #         # Look up the variable
-            #         var_name = first_child.value
-            #         symbol = self.lookup_symbol(var_name)
-            #         if symbol:
-            #             print(f"Found variable {var_name} with value: {symbol.get_value()}")
-            #             return symbol.get_value()
-            #         else:
-            #             print(f"Variable not found: {var_name}")
-            #             return None
-            #     else:
-            #         # For other types, evaluate the child
-            #         return self._evaluate_condition(first_child)
 
         # Handle value_id_tail nodes
         elif node.value == "<value_id_tail>":
@@ -2257,9 +2380,7 @@ class SemanticAnalyzer:
             return None
 
         # Handle literals and literals nodes
-        elif node.value == "<literals>" or (
-                hasattr(node, 'node_type') and node.node_type in ["pinchliterals", "skimliterals",
-                                                                  "pastaliterals"]):
+        elif node.value == "<literals>" or (hasattr(node, 'node_type') and node.node_type in ["pinchliterals", "skimliterals","pastaliterals"]):
             print(f"Processing literals node: {node.value}")
             if hasattr(node, 'node_type'):
                 if node.node_type == "pinchliterals":

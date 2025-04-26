@@ -109,19 +109,25 @@ cfg = {
                             ["&&"],
 				            ["??"]],
     
-    "<arithmetic_exp>": [["<arithmetic_operand>", "<arithmetic_tail>"]],
-    
-    "<arithmetic_tail>": [["<arithmetic_operator>", "<arithmetic_operand>", "<arithmetic_tail>"],
-                          ["λ"]],
-    
-    "<arithmetic_operand>": [["<value2>"],
-                             ["(", "<arithmetic_exp>", ")"]],
-    
-    "<arithmetic_operator>": [["+"],
-                            ["-"],
-                            ["*"],
-                            ["/"],
-                            ["%"]],
+    "<arithmetic_exp>": [["<term>", "<arithmetic_exp_tail>"]],
+
+    "<arithmetic_exp_tail>": [["<additive_operator>", "<term>", "<arithmetic_exp_tail>"],
+                              ["λ"]],
+
+    "<term>": [["<factor>", "<term_tail>"]],
+
+    "<term_tail>": [["<multiplicative_operator>", "<factor>", "<term_tail>"],
+                    ["λ"]],
+
+    "<factor>": [["<value2>"],
+                 ["(", "<arithmetic_exp>", ")"]],
+
+    "<additive_operator>": [["+"],
+                            ["-"]],
+
+    "<multiplicative_operator>": [["*"],
+                                  ["/"],
+                                  ["%"]],
 
     "<value>": [["<literals>"],
                 ["id", "<value_id_tail>"]],
@@ -155,26 +161,34 @@ cfg = {
                             ["mix", "{", "<statement_block>", "}"],
                             ["λ"]],
 
-    "<condition>": [["<condition_operand>", "<condition_tail>"]],
-    
-    "<condition_tail>": [["<condition_operator>", "<condition_operand>", "<relational>"],
+    "<condition>": [["<logical_or>", "<condition_tail>"]],
+
+    "<condition_tail>": [["λ"]],  # <- tail only for chaining, nothing more needed
+
+    "<logical_or>": [["<logical_and>", "<logical_or_tail>"]],
+
+    "<logical_or_tail>": [["??", "<logical_and>", "<logical_or_tail>"],
+                          ["λ"]],
+
+    "<logical_and>": [["<equality>", "<logical_and_tail>"]],
+
+    "<logical_and_tail>": [["&&", "<equality>", "<logical_and_tail>"],
+                           ["λ"]],
+
+    "<equality>": [["<relational>", "<equality_tail>"]],
+
+    "<equality_tail>": [["==", "<relational>", "<equality_tail>"],
+                        ["!=", "<relational>", "<equality_tail>"],
                         ["λ"]],
 
-    # editted start
-    "<condition_operand>": [["<arithmetic_exp>"],
-                            ["!", "(", "<condition>", ")"],
-                            ["!!", "(", "<condition>", ")"]],
-    #editted end
-    "<condition_operator>": [["=="],
-                            ["!="],
-                            ["<"],
-                            [">"],
-                            ["<="],
-                            [">="]],
-    "<relational>": [["<relational_operator>", "<condition>"],
-                     ["λ"]],
-    "<relational_operator>":    [["&&"],
-                                ["??"]],
+    "<relational>": [["<arithmetic_exp>", "<relational_tail>"]],
+
+    "<relational_tail>": [["<", "<arithmetic_exp>", "<relational_tail>"],
+                          [">", "<arithmetic_exp>", "<relational_tail>"],
+                          ["<=", "<arithmetic_exp>", "<relational_tail>"],
+                          [">=", "<arithmetic_exp>", "<relational_tail>"],
+                          ["λ"]],
+
 
     "<case_tail>": [["case", "<literals4>", ":", "<statement_block>", "chop", ";", "<case_tail>"],
                     ["default", ":", "<statement_block>", "chop", ";"],
