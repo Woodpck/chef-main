@@ -158,10 +158,10 @@ class LexicalAnalyzer:
         self.current_character = self.code[self.pos.idx] if self.pos.idx < len(self.code) else None
 
     def match_char_and_advance(self, expected_char):
-            if self.current_character == expected_char:
-                self.read_next_character()
-                return True
-            return False
+        if self.current_character == expected_char:
+            self.read_next_character()
+            return True
+        return False
     
     def reserve_and_transition(self, string_buffer, next_state):
         string_buffer += self.current_character  # Collect the current character
@@ -180,20 +180,22 @@ class LexicalAnalyzer:
 
     def emit_token(self, tokens, token_type, value):
         tokens.append((value, token_type, self.pos.ln))
+    
+    def process_string_literal(self, string_literal, next_state):
+        ESCAPE_MAP = {'"': '"', '\\': '\\', 'n': '\n', 't': '\t'}
 
-    def read_string_literal(self):
-        string_content = ""
-
-        while self.current_character not in { '"', EOF, '\n' }:
-            if self.match_char_and_advance('\\'):
-                escape_map = {'"': '"', '\\': '\\', 'n': '\n', 't': '\t'}
-                string_content += escape_map.get(self.current_character, self.current_character)
+        if self.match_char_and_advance('\\'):               # If backslash found, handle escape sequences
+            escape_char = self.current_character
+            if escape_char in ESCAPE_MAP:
+                string_literal += ESCAPE_MAP[escape_char]
             else:
-                string_content += self.current_character
+                string_literal += escape_char               # If unknown escape, include as-is
+        else:
+            string_literal += self.current_character        # Regular character in literal
 
-            self.read_next_character()
+        self.read_next_character()                          # Ensure you're reading the next character here
 
-        return string_content
+        return string_literal, next_state
 
     def append_digit_and_advance(self, literal: str) -> tuple[bool, str]:
         if self.current_character.isdigit():
@@ -218,6 +220,7 @@ class LexicalAnalyzer:
             if state == 0:
                 str_buffer = ""
                 str_start_ = self.pos.copy()
+                pasta_literal = ""
 
                 # reserved words
                 if self.match_char_and_advance('b'):       
@@ -287,8 +290,8 @@ class LexicalAnalyzer:
 
                 elif    self.match_char_and_advance(';'):       state = 235
                 elif    self.match_char_and_advance(':'):       state = 237
-                elif    self.check_delimiter(WHITE_SPACE):      self.read_next_character()                         
-                else:                                           state = 300     # state 300 handles lexical errors
+                elif    self.check_delimiter(WHITE_SPACE):      self.read_next_character()          # Captures space, newline, and tab                    
+                else:                                           state = 300                         # state 300 handles lexical errors
 
             elif state == 1:
                 if self.match_char_and_advance('l'):       
@@ -1143,9 +1146,17 @@ class LexicalAnalyzer:
                 self.emit_token(tokens, TT_GREATER_THAN_EQUAL, '>=')
                 state = 0
             elif state == 206:
-                pasta_literal = self.read_string_literal()                          # Set pasta literal to string content
-                if      self.match_char_and_advance('"'):       state = 207
-                else:                                           state = 301         # Unterminated pasta literal error
+                MAX_PASTA_LITERAL_LENGTH = 256
+                if (self.current_character not in {EOF, '\n', '"'} and 
+                    len(pasta_literal) < MAX_PASTA_LITERAL_LENGTH):
+                    pasta_literal, state = self.process_string_literal(pasta_literal, 206)
+                elif self.match_char_and_advance('"'):
+                    state = 207
+                elif len(pasta_literal) >= MAX_PASTA_LITERAL_LENGTH:
+                    print('YOU EXCEEDED THE LIMIT')
+                    state = 301  # Error: max length exceeded
+                else:
+                    state = 301  # Error: unterminated string literal or other error
             elif state == 207:
                 if      self.check_delimiter(PASTA_DELIM):      state = 208
                 else:                                           state = 300
@@ -1241,7 +1252,8 @@ class LexicalAnalyzer:
                 state = 0
             elif state == 231:
                 MAX_IDENTIFIER_LENGTH = 32
-                if self.current_character in UNDER_ALPHA_NUM and len(identifier) < MAX_IDENTIFIER_LENGTH:
+                if (self.current_character in UNDER_ALPHA_NUM and 
+                    len(identifier) < MAX_IDENTIFIER_LENGTH):
                     identifier += self.current_character
                     self.read_next_character()
                     state = 231                                                         # Stay in the same state to collect more characters
