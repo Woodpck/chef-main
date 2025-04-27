@@ -102,7 +102,7 @@ TT_SEMI_COLON = ';'
 TT_COLON = ':'
 
 # ERRORS
-class Error:
+class LexicalError:
     def __init__(self, pos_start, pos_end, error_name, details):
         self.pos_start = pos_start
         self.pos_end = pos_end
@@ -110,11 +110,41 @@ class Error:
         self.details = details
     
     def as_string(self):
-        result  = f'{self.error_name}: {self.details}\n'
-        result += f'Line {self.pos_start.ln + 1}'
+        '''This formats the error message like: `Lexical Error: Invalid character '@' at line X, column Y`'''
+        result = f'{self.error_name}: {self.details} at line {self.pos_start.ln + 1}, column {self.pos_start.col + 1}\n'
+        result += f'    {self.get_error_line()}\n'
+        result += f'    {"~" * (self.pos_start.col)}^'          # Error pointer
+        
+        # # Add the error line where the invalid character was found
+        # error_line = self.get_error_line()
+        # if error_line:  # If there's an error line, append it
+        #     result += f'    {error_line}\n'
+        #     result += f'    {"~" * (self.pos_start.col)}^'  # Error pointer
+        # else:
+        #     result += "    Error line not found.\n"
+        
         return result
 
-class IllegalCharError(Error):
+    def get_error_line(self):
+        '''This method returns the line of code that caused the error'''
+        lines = self.pos_start.ftxt.split('\n')
+        return lines[self.pos_start.ln] if self.pos_start.ln < len(lines) else ""
+    
+        # print(f'[Get_error-line]: lines variable contains: {lines}')
+        # if self.pos_start.ln < len(lines):
+        #     return lines[self.pos_start.ln]
+        # else:
+        #     print(f"Error: Line index {self.pos_start.ln} out of range for file.")
+        #     print(f"File content: {self.pos_start.ftxt}")  # Debugging
+        #     return ""  # In case of invalid line index
+
+# NEW INVALID CLASS
+class InvalidCharacterError(LexicalError):
+    def __init__(self, pos_start, pos_end, details):
+        super().__init__(pos_start, pos_end, "Lexical Error", details)
+
+# OLD INVALID
+class IllegalCharError(LexicalError):
     def __init__(self, pos_start, pos_end, details):
         super().__init__(pos_start, pos_end, 'Illegal Character', details)
 
@@ -131,9 +161,11 @@ class Position:
         self.col += 1
 
         if current_character == '\n':
-            self.ln += 1
-            self.col = 0
-
+            self.ln += 1                # Move to the next line
+            self.col = 0                # Reset column to 0
+        
+        # Debugging line
+        # print(f"Tracking character: {current_character} at line {self.ln}, column {self.col}")  
         return self
 
     def copy(self):
@@ -150,7 +182,7 @@ class LexicalAnalyzer:
         
     def initialize_lexer(self, code):
         self.code = code + EOF                      # Append EOF to signal end of file
-        self.pos = Position(-1, 1, -1, code)        # Position starts at index 1
+        self.pos = Position(-1, 0, -1, code)        # Position starts at index 0
         self.read_next_character()                  # Set the first character
 
     def read_next_character(self):
@@ -164,7 +196,7 @@ class LexicalAnalyzer:
         return False
     
     def reserve_and_transition(self, string_buffer, next_state):
-        string_buffer += self.current_character  # Collect the current character
+        string_buffer += self.current_character     # Collect the current character
         return string_buffer, next_state
 
     def fallback_to_identifier(self, position, next_state):
@@ -291,7 +323,12 @@ class LexicalAnalyzer:
                 elif    self.match_char_and_advance(';'):       state = 235
                 elif    self.match_char_and_advance(':'):       state = 237
                 elif    self.check_delimiter(WHITE_SPACE):      self.read_next_character()          # Captures space, newline, and tab                    
-                else:                                           state = 300                         # state 300 handles lexical errors
+                else:
+                    pos_start = self.pos.copy()
+                    invalid_character = self.current_character
+                    self.read_next_character()
+                    errors.append(InvalidCharacterError(pos_start, self.pos, f"Invalid character '{invalid_character}'"))
+                    state = 0
 
             elif state == 1:
                 if self.match_char_and_advance('l'):       
@@ -1260,7 +1297,11 @@ class LexicalAnalyzer:
                 elif self.check_delimiter(ID_DELIM):
                     state = 232
                 else:
-                    state = 300
+                    pos_start = self.pos.copy()
+                    invalid_character = self.current_character
+                    self.read_next_character()
+                    errors.append(InvalidCharacterError(pos_start, self.pos, f"Invalid character '{invalid_character}'"))
+                    state = 0
             elif state == 232:
                 self.identifier_count += 1
                 token_name = f"{TT_IDENTIFIER}{self.identifier_count}"
@@ -1278,13 +1319,15 @@ class LexicalAnalyzer:
             elif state == 238:
                 self.emit_token(tokens, TT_COLON, ':')
                 state = 0
+            # REMOVE: This will be removed once all errors are accounted for    
             elif state == 300:
                 pos_start = start_position.copy()
                 char = self.current_character
                 self.read_next_character()
                 errors.append(IllegalCharError(pos_start, self.pos, f"Illegal Character '{char}'"))
                 state = 0
-
+                
+            # REMOVE: This will be removed once all errors are accounted for  
             elif state == 301:  # Handles unterminated string literal
                 pos_start = start_position.copy()
                 char = self.current_character
