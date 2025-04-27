@@ -102,7 +102,7 @@ TT_SEMI_COLON = ';'
 TT_COLON = ':'
 
 # ERRORS
-class LexicalError:
+class Error:
     def __init__(self, pos_start, pos_end, error_name, details):
         self.pos_start = pos_start
         self.pos_end = pos_end
@@ -139,12 +139,12 @@ class LexicalError:
         #     return ""  # In case of invalid line index
 
 # NEW INVALID CLASS
-class InvalidCharacterError(LexicalError):
+class LexicalError(Error):
     def __init__(self, pos_start, pos_end, details):
         super().__init__(pos_start, pos_end, "Lexical Error", details)
 
 # OLD INVALID
-class IllegalCharError(LexicalError):
+class IllegalCharError(Error):
     def __init__(self, pos_start, pos_end, details):
         super().__init__(pos_start, pos_end, 'Illegal Character', details)
 
@@ -327,7 +327,7 @@ class LexicalAnalyzer:
                     pos_start = self.pos.copy()
                     invalid_character = self.current_character
                     self.read_next_character()
-                    errors.append(InvalidCharacterError(pos_start, self.pos, f"Invalid character '{invalid_character}'"))
+                    errors.append(LexicalError(pos_start, self.pos, f"Invalid character '{invalid_character}'"))
                     state = 0
 
             elif state == 1:
@@ -1193,7 +1193,10 @@ class LexicalAnalyzer:
                     print('YOU EXCEEDED THE LIMIT')
                     state = 301  # Error: max length exceeded
                 else:
-                    state = 301  # Error: unterminated string literal or other error
+                    pos_start = str_start_.copy()
+                    pos_end = self.pos.copy()
+                    errors.append(LexicalError(pos_start, pos_end, "Unterminated string literal"))
+                    state = 0
             elif state == 207:
                 if      self.check_delimiter(PASTA_DELIM):      state = 208
                 else:                                           state = 300
@@ -1300,7 +1303,7 @@ class LexicalAnalyzer:
                     pos_start = self.pos.copy()
                     invalid_character = self.current_character
                     self.read_next_character()
-                    errors.append(InvalidCharacterError(pos_start, self.pos, f"Invalid character '{invalid_character}'"))
+                    errors.append(LexicalError(pos_start, self.pos, f"Invalid character '{invalid_character}'"))
                     state = 0
             elif state == 232:
                 self.identifier_count += 1
