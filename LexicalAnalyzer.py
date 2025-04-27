@@ -1194,15 +1194,21 @@ class LexicalAnalyzer:
                     pasta_literal, state = self.process_string_literal(pasta_literal, 206)
                 elif self.match_char_and_advance('"'):
                     state = 207
-                elif len(pasta_literal) >= MAX_PASTA_LITERAL_LENGTH:
-                    print('YOU EXCEEDED THE LIMIT')
-                    state = 301  # Error: max length exceeded
+                elif self.current_character in {EOF, '\n'}:
+                    '''Captures example: "Hello World;'''
+                    self.display_lexical_error(str_start_.copy(), self.pos.copy(), errors, f"Unterminated pastaliteral")
+                    state = 0
                 else:
-                    self.display_lexical_error(str_start_.copy(), self.pos.copy(), errors, f"Unterminated string literal")
+                    '''Captures pasta literal that exceeds 256 characters'''
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Pastaliteral exceeds {MAX_IDENTIFIER_LENGTH} characters")
                     state = 0
             elif state == 207:
                 if      self.check_delimiter(PASTA_DELIM):      state = 208
-                else:                                           state = 300
+                else:
+                    '''Captures example: "Hello World"-'''
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid delimiter '{invalid_character}', expected ',' or ';'")
+                    state = 0
             elif state == 208:
                 self.emit_token(tokens, TT_PASTA_LITERAL, f'"{pasta_literal}"')
                 state = 0
@@ -1255,11 +1261,11 @@ class LexicalAnalyzer:
                 elif not self.current_character.isdigit():
                     '''Captures example: 123a'''
                     invalid_character = self.current_character
-                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid suffix '{invalid_character}' on pinch literal")
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid suffix '{invalid_character}' on pinchliteral")
                     state = 0
                 else:
                     '''Captures example: 1234567891'''              
-                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Pinch literal exceeds 9 digits")
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Pinchliteral exceeds 9 digits")
                     state = 0
             elif state == 219:
                 self.emit_token(tokens, TT_PINCH_LITERAL, number_literal)
@@ -1310,16 +1316,16 @@ class LexicalAnalyzer:
                     state = 230
                 elif self.current_character == '.':
                     '''Captures example: 123..1 or 123.1.1'''
-                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Too many decimal points in skim literal")
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Too many decimal points in skimliteral")
                     state = 0
                 elif not self.current_character.isdigit():
                     '''Captures example: 123.a'''
                     invalid_character = self.current_character
-                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid suffix '{invalid_character}' on skim literal")
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid suffix '{invalid_character}' on skimliteral")
                     state = 0
                 else:
                     '''Captures example: 0.1234567891'''
-                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Skim literal exceeds 9 digits")
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Skimliteral exceeds 9 digits")
                     state = 0
             elif state == 230:
                 self.emit_token(tokens, TT_SKIM_LITERAL, number_literal)
@@ -1333,10 +1339,14 @@ class LexicalAnalyzer:
                     state = 231                                                         # Stay in the same state to collect more characters
                 elif self.check_delimiter(ID_DELIM):
                     state = 232
-                else:
-                    '''Captures example: my_var!'''
+                elif self.current_character not in UNDER_ALPHA_NUM:
+                    '''Captures example: variableNameThatExceeds32Characters'''
                     invalid_character = self.current_character
                     self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
+                else:
+                    '''Captures example: my_var!'''
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Identifier exceeds {MAX_IDENTIFIER_LENGTH} characters")
                     state = 0
             elif state == 232:
                 self.identifier_count += 1
@@ -1360,15 +1370,7 @@ class LexicalAnalyzer:
                 pos_start = start_position.copy()
                 char = self.current_character
                 self.read_next_character()
-                errors.append(IllegalCharError(pos_start, self.pos, f"Illegal Character '{char}'"))
-                state = 0
-                
-            # REMOVE: This will be removed once all errors are accounted for  
-            elif state == 301:  # Handles unterminated string literal
-                pos_start = start_position.copy()
-                char = self.current_character
-                self.read_next_character()          # Move past the current character (which is part of the unterminated string)
-                errors.append(IllegalCharError(pos_start, self.pos, f"Unterminated string literal (missing closing '\"'). Found '{char}'"))
+                errors.append(IllegalCharError(pos_start, self.pos, f"[TO BE REMOVED] Illegal Character '{char}'"))
                 state = 0
 
             # Convert errors to string format here
