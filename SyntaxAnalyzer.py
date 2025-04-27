@@ -75,7 +75,7 @@ cfg = {
                     ["make", "(", "id", ")", ";"]],
     
     "<statement_id_tail>": [["(", "<argument_list>", ")", ";"],
-                            ["<assignment_operator>", "<expression>", ";"],
+                            ["<assignment_operator>", "<condition>", ";"],
                             ["[", "<recipe_index>", "]", "<assignment_operator>", "<arithmetic_exp>", ";"],
                             ["<unary_op>", ";"]],
     
@@ -161,9 +161,7 @@ cfg = {
                             ["mix", "{", "<statement_block>", "}"],
                             ["λ"]],
 
-    "<condition>": [["<logical_or>", "<condition_tail>"]],
-
-    "<condition_tail>": [["λ"]],  # <- tail only for chaining, nothing more needed
+    "<condition>": [["<logical_or>"]],
 
     "<logical_or>": [["<logical_and>", "<logical_or_tail>"]],
 
@@ -177,17 +175,23 @@ cfg = {
 
     "<equality>": [["<relational>", "<equality_tail>"]],
 
-    "<equality_tail>": [["==", "<relational>", "<equality_tail>"],
-                        ["!=", "<relational>", "<equality_tail>"],
+    "<equality_tail>": [["==", "<relational>"],
+                        ["!=", "<relational>"],
                         ["λ"]],
 
-    "<relational>": [["<arithmetic_exp>", "<relational_tail>"]],
+    "<relational>": [["<primary>", "<relational_tail>"]],
 
-    "<relational_tail>": [["<", "<arithmetic_exp>", "<relational_tail>"],
-                          [">", "<arithmetic_exp>", "<relational_tail>"],
-                          ["<=", "<arithmetic_exp>", "<relational_tail>"],
-                          [">=", "<arithmetic_exp>", "<relational_tail>"],
+    "<relational_tail>": [["<", "<primary>", "<relational_tail>"],
+                          [">", "<primary>", "<relational_tail>"],
+                          ["<=", "<primary>", "<relational_tail>"],
+                          [">=", "<primary>", "<relational_tail>"],
                           ["λ"]],
+
+    "<primary>": [["<arithmetic_exp>"],
+                  ["yum"],
+                  ["bleh"],
+                  ["!", "(", "<condition>", ")"],
+                  ["!!", "(", "<condition>", ")"]],
 
 
     "<case_tail>": [["case", "<literals4>", ":", "<statement_block>", "chop", ";", "<case_tail>"],

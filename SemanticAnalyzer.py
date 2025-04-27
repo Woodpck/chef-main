@@ -1,3 +1,5 @@
+from pandas.core.base import NoNewAttributesMixin
+
 from SyntaxAnalyzer import ParseTreeNode
 from datetime import datetime
 
@@ -1017,7 +1019,7 @@ class SemanticAnalyzer:
                                 print(f"Expression node structure before evaluation:")
                                 self._print_node_structure(expr_node)
 
-                                value = self._evaluate_expression(expr_node)
+                                value = self._evaluate_condition(expr_node)
                                 print(f"Expression evaluation result: {value}")
 
                                 if value is not None:
@@ -2218,6 +2220,21 @@ class SemanticAnalyzer:
         print(f"Unable to evaluate expression node: {node.value}")
         return None
 
+    def _process_optional_equality(self, node, left_value):
+        if not node.children or node.children[0].value == "λ":
+            return left_value  # No comparison, just return left side
+
+        operator = node.children[0].value  # '==' or '!='
+        right_node = node.children[1]
+        right_value = self._evaluate_condition(right_node)
+
+        if operator == "==":
+            return left_value == right_value
+        elif operator == "!=":
+            return left_value != right_value
+        else:
+            raise ValueError(f"Unknown operator in optional equality: {operator}")
+
     def _process_logical_or_tail(self, tail_node, left_value):
         if not tail_node or not tail_node.children or tail_node.children[0].value == "λ":
             return left_value
@@ -2240,19 +2257,15 @@ class SemanticAnalyzer:
             return self._process_logical_or_tail(tail_node.children[2], combined)
         return left_value
 
-    def _process_equality_tail(self, tail_node, left_value):
-        if not tail_node or not tail_node.children or tail_node.children[0].value == "λ":
+    def _process_equality_tail(self, node, left_value):
+        if not node.children or node.children[0].value == "λ":
             return left_value
-
-        right_node = tail_node.children[1]
-        right_value = self._evaluate_condition(right_node)
-        if tail_node.children[0].value == "==":
-            combined = left_value == right_value
-            return self._process_logical_or_tail(tail_node.children[2], combined)
-        elif tail_node.children[0].value == "!=":
-            combined = left_value != right_value
-            return self._process_logical_or_tail(tail_node.children[2], combined)
-        return left_value
+        operator = node.children[0].value  # '==' or '!='
+        right = self._evaluate_condition(node.children[1])
+        result = (left_value == right) if operator == "==" else (left_value != right)
+        if len(node.children) > 2:
+            return self._process_equality_tail(node.children[2], result)
+        return result
 
     def _process_relational_tail(self, tail_node, left_value):
         if not tail_node or not tail_node.children or tail_node.children[0].value == "λ":
@@ -2291,14 +2304,11 @@ class SemanticAnalyzer:
         # Handle <condition> node
         if node.value == "<condition>":
             print("Processing <condition> node")
-            if len(node.children) >= 2:
-                left_node = node.children[0]
-                tail_node = node.children[1]
-
-                left_value = self._evaluate_condition(left_node)
-                if left_value is not None:
-                    return self._process_condition_tail(tail_node, left_value)
-                return left_value
+            if not node.children:
+                return None
+            first_child = node.children[0]
+            value = self._evaluate_condition(first_child)
+            return value
 
         # Handle <condition_operand> node
         elif node.value == "<condition_operand>":
@@ -2346,14 +2356,9 @@ class SemanticAnalyzer:
         # Handle <equality> node
         elif node.value == "<equality>":
             print("Processing <equality> node")
-            if len(node.children) >= 2:
-                left_node = node.children[0]
-                tail_node = node.children[1]
-
-                left_value = self._evaluate_condition(left_node)
-                return self._process_equality_tail(tail_node, left_value)
-            else:
-                return self._evaluate_condition(node.children[0])
+            left = self._evaluate_condition(node.children[0])  # <relational>
+            optional = node.children[1]  # <optional_equality>
+            return self._process_optional_equality(optional, left)
 
         # Handle <relational> node
         elif node.value == "<relational>":
@@ -2362,7 +2367,38 @@ class SemanticAnalyzer:
                 left_node = node.children[0]
                 tail_node = node.children[1]
 
-                left_value = self._evaluate_expression(left_node)  # Notice: call arithmetic eval!
+                if left_node.value == "<primary>":
+                    print("Processing <primary> node")
+                    if not node.children:
+                        return None
+
+                    first_child = left_node.children[0]
+
+                    if first_child.value == "!":
+                        # Handle "!(<condition>)"
+                        print("Found ! (negation) node")
+                        inner_condition = node.children[2]  # because structure: ! ( <condition> )
+                        value = self._evaluate_condition(inner_condition)
+                    elif first_child.value == "!!":
+                        # Handle "!!(<condition>)"
+                        print("Found !! (double-negation) node")
+                        inner_condition = node.children[2]  # because structure: !! ( <condition> )
+                        value = self._evaluate_condition(inner_condition)
+                    elif first_child.value == "yum":
+                        print(f"Found: {node.value} => processing")
+                        value = True
+                    elif first_child.value == "bleh":
+                        print(f"Found: {node.value} => processing")
+                        value = False
+                    else:
+                        # Normal <logical_or> (no negation)
+                        value = self._evaluate_expression(first_child)
+                        return value
+                else:
+                    line_num = getattr(node, 'line_number', None)
+                    self.errors.append(SemanticError("NO_PRIMARY_NODE", "Primary node missing!", line_num))
+                    return None
+                left_value = value
                 return self._process_relational_tail(tail_node, left_value)
             else:
                 return self._evaluate_expression(node.children[0])
