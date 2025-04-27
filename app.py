@@ -43,21 +43,16 @@ def index():
 
         # FIX_OPTIONAL: Add empty string validation for code
         program_code = normalize_newlines(request.form.get("code")).strip()             # Normalize newlines and strip leading and trailing whitespaces
-
-        # Parse user inputted code using Lexical Analyzer
         try:
+            # Tokenize user inputted code using Lexical Analyzer
             tokens, errors = LexicalAnalyzer().tokenize(program_code)
-            # print(f"NewAnalyzer contains: {tokens}")
             lexeme_token_list = [(token[0], token[1]) for token in tokens]              # token[0] refers to lexeme, token[1] refers to token type
-
             if errors:
-                lexical_errors = "\n".join(errors)  # Join all the error messages into a single string
+                lexical_errors = "\n".join(errors)                                      # Join all the error messages into a single string
             else:
                 has_lexical_passed = True
-
         except Exception as e:
             lexical_errors = f"Lexical Error: {e}"
-            # print(lexical_errors)
 
         # Parse tokens using Syntax Analyzer
         if has_lexical_passed:

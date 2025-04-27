@@ -139,22 +139,6 @@ class Position:
     def copy(self):
         return Position(self.idx, self.ln, self.col, self.ftxt)
 
-# TOKEN
-# class Token:
-#     def __init__(self, type_, line_number_, value=None,):
-#         self.type = type_
-#         self.value = value
-#         self.line_number = line_number_
-    
-#     def __repr__(self):
-#         # if self.value: return f'{self.type}:{self.value}'
-#         if self.value: return f"('{self.value}','{self.type}', {self.line_number})"
-#         return f'{self.type}'
-
-#     # Make Token behave like a tuple by defining __iter__
-#     def __iter__(self):
-#         return iter((self.type, self.value, self.line_number))
-
 # LEXER
 class LexicalAnalyzer:
     def __init__(self):
@@ -179,23 +163,22 @@ class LexicalAnalyzer:
                 return True
             return False
     
-    def reserve_and_transition(self, reserved_buffer, state, next_state):
-        reserved_buffer += self.current_character  # Collect the current character
-        state = next_state                         # Transition to the next state
-        return reserved_buffer, state
-    
-    def reset_to_position(self, position):
+    def reserve_and_transition(self, string_buffer, next_state):
+        string_buffer += self.current_character  # Collect the current character
+        return string_buffer, next_state
+
+    def fallback_to_identifier(self, position, next_state):
         self.pos = position.copy()
         self.current_character = self.code[self.pos.idx] if self.pos.idx < len(self.code) else None
+        fall_back = self.current_character
+        self.read_next_character()
+        return fall_back, next_state
 
     def check_delimiter(self, delimiter_set):
         # !IMPORTANT: Revisit EOF logic
         return self.current_character in delimiter_set or self.current_character == EOF
 
     def emit_token(self, tokens, token_type, value):
-        # tokens.append(Token(token_type, value))
-        # TESTING:
-        # tokens.append(Token(token_type, self.pos.ln, value))
         tokens.append((value, token_type, self.pos.ln))
 
     def read_string_literal(self):
@@ -233,23 +216,36 @@ class LexicalAnalyzer:
             print(f"Index: {self.pos.idx}, Current Character: '{self.current_character}', State: {state}")
 
             if state == 0:
-                reserved_buffer = ""
-                reserved_start = self.pos.copy()
+                str_buffer = ""
+                str_start_ = self.pos.copy()
 
                 # reserved words
-                if      self.match_char_and_advance('b'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 1)
-                elif    self.match_char_and_advance('c'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 10)
-                elif    self.match_char_and_advance('d'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 22)
-                elif    self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 39)
-                elif    self.match_char_and_advance('f'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 44)
-                elif    self.match_char_and_advance('h'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 56)
-                elif    self.match_char_and_advance('k'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 63)
-                elif    self.match_char_and_advance('m'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 71)
-                elif    self.match_char_and_advance('p'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 79)
-                elif    self.match_char_and_advance('r'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 90)
-                elif    self.match_char_and_advance('s'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 97)
-                elif    self.match_char_and_advance('t'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 117)
-                elif    self.match_char_and_advance('y'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 129)
+                if self.match_char_and_advance('b'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 1)
+                elif self.match_char_and_advance('c'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 10)
+                elif self.match_char_and_advance('d'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 22)
+                elif self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 39)
+                elif self.match_char_and_advance('f'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 44)
+                elif self.match_char_and_advance('h'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 56)
+                elif self.match_char_and_advance('k'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 63)
+                elif self.match_char_and_advance('m'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 71)
+                elif self.match_char_and_advance('p'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 79)
+                elif self.match_char_and_advance('r'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 90)
+                elif self.match_char_and_advance('s'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 97)
+                elif self.match_char_and_advance('t'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 117)
+                elif self.match_char_and_advance('y'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 129)
                 # in original lexer, they skipped 133
                 # in original lexer, they skipped 135
                 # in original lexer, they skipped 137
@@ -295,935 +291,636 @@ class LexicalAnalyzer:
                 else:                                           state = 300     # state 300 handles lexical errors
 
             elif state == 1:
-                if      self.match_char_and_advance('l'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 2)
-                elif    self.match_char_and_advance('o'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 6)
+                if self.match_char_and_advance('l'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 2)
+                elif self.match_char_and_advance('o'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 6)
                 else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 2:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 3)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 3)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 3:
-                if      self.match_char_and_advance('h'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 4)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('h'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 4)
+                else:                                               
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 4:
-                if      self.check_delimiter(BOOL_DELIM):       state = 5
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(BOOL_DELIM):       
+                    state = 5
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 5:
                 self.emit_token(tokens, TT_BLEH, 'bleh')
                 state = 0
             elif state == 6:
-                if      self.match_char_and_advance('o'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 7)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('o'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 7)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 7:
-                if      self.match_char_and_advance('l'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 8)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('l'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 8)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 8:
-                if      self.check_delimiter(DT_DELIM):         state = 9
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(DT_DELIM):         
+                    state = 9
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 9:
                 self.emit_token(tokens, TT_BOOL, 'bool')
                 state = 0
             elif state == 10:
-                if      self.match_char_and_advance('a'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 11)
-                elif    self.match_char_and_advance('h'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 15)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('a'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 11)
+                elif self.match_char_and_advance('h'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 15)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 11:
-                if      self.match_char_and_advance('s'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 12)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('s'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 12)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 12:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 13)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 13)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 13:
-                if      self.check_delimiter(SPACE_DELIM):      state = 14
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 14
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 14:
                 self.emit_token(tokens, TT_CASE, 'case')
                 state = 0
             elif state == 15:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 16)
-                elif    self.match_char_and_advance('o'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 19)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 16)
+                elif self.match_char_and_advance('o'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 19)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 16:
-                if      self.match_char_and_advance('f'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 17)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('f'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 17)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 17:
-                if      self.check_delimiter(SPACE_DELIM):      state = 18
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 18
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 18:
                 self.emit_token(tokens, TT_CHEF, 'chef')
                 state = 0
             elif state == 19:
-                if      self.match_char_and_advance('p'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 20)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('p'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 20)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 20:
-                if      self.check_delimiter(SEMICOLON_DELIM):  state = 21
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SEMICOLON_DELIM):  
+                    state = 21
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 21:
                 self.emit_token(tokens, TT_CHOP, 'chop')
                 state = 0
             elif state == 22:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 23)
-                elif    self.match_char_and_advance('i'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 30)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 23)
+                elif self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 30)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 23:
-                if      self.match_char_and_advance('f'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 24)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('f'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 24)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 24:
-                if      self.match_char_and_advance('a'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 25)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('a'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 25)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 25:
-                if      self.match_char_and_advance('u'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 26)
+                if self.match_char_and_advance('u'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 26)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 26:                                               
+                if self.match_char_and_advance('l'):
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 27)
                 else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
-            elif state == 26:
-                if      self.match_char_and_advance('l'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 27)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 27:
-                if      self.match_char_and_advance('t'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 28)
+                if self.match_char_and_advance('t'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 28)
                 else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 28:
-                if      self.check_delimiter(COLON_DELIM):      state = 29
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(COLON_DELIM):      
+                    state = 29
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 29:
                 self.emit_token(tokens, TT_DEFAULT, 'default')
                 state = 0
             elif state == 30:
-                if      self.match_char_and_advance('n'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 31)
-                elif    self.match_char_and_advance('s'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 36)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('n'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 31)
+                elif self.match_char_and_advance('s'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 36)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 31:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 32)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 32)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 32:
-                if      self.match_char_and_advance('i'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 33)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 33)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 33:
-                if      self.match_char_and_advance('n'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 34)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('n'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 34)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 34:
-                if      self.check_delimiter(NEWLINE_DELIM):    state = 35
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(NEWLINE_DELIM):    
+                    state = 35
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 35:
                 self.emit_token(tokens, TT_DINEIN, 'dinein')
                 state = 0
             elif state == 36:
-                if      self.match_char_and_advance('h'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 37)
+                if self.match_char_and_advance('h'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 37)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 37:
-                if      self.check_delimiter(OPARAN_DELIM):     state = 38
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(OPARAN_DELIM):     
+                    state = 38
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 38:
                 self.emit_token(tokens, TT_DISH, 'dish')
                 state = 0
             elif state == 39:
-                if      self.match_char_and_advance('l'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 40)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('l'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 40)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 40:
-                if      self.match_char_and_advance('i'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 41)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 41)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 41:
-                if      self.match_char_and_advance('f'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 42)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('f'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 42)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 42:
-                if      self.check_delimiter(SPACE_DELIM):      state = 43          # In docs, this is delim0
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 43          # In docs, this is delim0
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 43:
                 self.emit_token(tokens, TT_ELIF, 'elif')
                 state = 0
             elif state == 44:
-                if      self.match_char_and_advance('l'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 45)
-                elif    self.match_char_and_advance('o'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 49)
-                elif    self.match_char_and_advance('u'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 52)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('l'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 45)
+                elif self.match_char_and_advance('o'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 49)
+                elif self.match_char_and_advance('u'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 52)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 45:
-                if      self.match_char_and_advance('i'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 46)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 46)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 46:
-                if      self.match_char_and_advance('p'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 47)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('p'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 47)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 47:
-                if      self.check_delimiter(SPACE_DELIM):      state = 48          # In docs, this is delim0
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 48          # In docs, this is delim0
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 48:
                 self.emit_token(tokens, TT_FLIP, 'flip')
                 state = 0
             elif state == 49:
-                if      self.match_char_and_advance('r'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 50)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('r'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 50)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 50:
-                if      self.check_delimiter(SPACE_DELIM):      state = 51          # In docs, this is delim0
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 51          # In docs, this is delim0
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 51:
                 self.emit_token(tokens, TT_FOR, 'for')
                 state = 0
             elif state == 52:
-                if      self.match_char_and_advance('l'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 53)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('l'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 53)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 53:
-                if      self.match_char_and_advance('l'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 54)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('l'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 54)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 54:
-                if      self.check_delimiter(SPACE_DELIM):      state = 55          # In docs, this is dt_delim
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 55          # In docs, this is dt_delim
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 55:
                 self.emit_token(tokens, TT_FULL, 'full')
                 state = 0
             elif state == 56:
-                if      self.match_char_and_advance('u'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 57)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('u'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 57)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 57:
-                if      self.match_char_and_advance('n'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 58)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('n'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 58)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 58:
-                if      self.match_char_and_advance('g'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 59)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('g'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 59)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 59:
-                if      self.match_char_and_advance('r'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 60)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('r'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 60)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 60:
-                if      self.match_char_and_advance('y'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 61)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('y'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 61)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 61:
-                if      self.check_delimiter(SPACE_DELIM):      state = 62
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 62
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 62:
                 self.emit_token(tokens, TT_HUNGRY, 'hungry')
                 state = 0
             elif state == 63:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 64)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 64)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 64:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 65)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 65)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 65:
-                if      self.match_char_and_advance('p'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 66)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('p'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 66)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 66:
-                if      self.match_char_and_advance('m'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 67)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('m'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 67)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 67:
-                if      self.match_char_and_advance('i'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 68)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 68)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 68:
-                if      self.match_char_and_advance('x'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 69)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('x'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 69)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 69:
-                if      self.check_delimiter(SPACE_DELIM):      state = 70          # In docs, this is delim2
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 70          # In docs, this is delim2
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 70:
                 self.emit_token(tokens, TT_KEEPMIX, 'keepmix')
                 state = 0
             elif state == 71:
-                if      self.match_char_and_advance('a'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 72)
-                elif    self.match_char_and_advance('i'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 76)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('a'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 72)
+                elif self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 76)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 72:
-                if      self.match_char_and_advance('k'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 73)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('k'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 73)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 73:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 74)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 74)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 74:
-                if      self.check_delimiter(SPACE_DELIM):      state = 75          # In docs, this is delim0
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 75          # In docs, this is delim0
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 75:
                 self.emit_token(tokens, TT_MAKE, 'make')
                 state = 0
             elif state == 76:
-                if      self.match_char_and_advance('x'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 77)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('x'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 77)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 77:
-                if      self.check_delimiter(SPACE_DELIM):      state = 78          # In docs, this is delim2
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 78          # In docs, this is delim2
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 78:
                 self.emit_token(tokens, TT_MIX, 'mix')
                 state = 0
             elif state == 79:
-                if      self.match_char_and_advance('a'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 80)
-                elif    self.match_char_and_advance('i'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 85)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('a'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 80)
+                elif self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 85)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 80:
-                if      self.match_char_and_advance('s'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 81)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('s'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 81)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 81:
-                if      self.match_char_and_advance('t'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 82)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('t'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 82)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 82:
-                if      self.match_char_and_advance('a'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 83)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('a'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 83)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 83:
-                if      self.check_delimiter(DT_DELIM):         state = 84
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(DT_DELIM):         
+                    state = 84
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 84:
                 self.emit_token(tokens, TT_PASTA, 'pasta')
                 state = 0
             elif state == 85:
-                if      self.match_char_and_advance('n'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 86)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('n'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 86)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 86:
-                if      self.match_char_and_advance('c'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 87)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('c'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 87)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 87:
-                if      self.match_char_and_advance('h'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 88)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('h'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 88)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 88:
-                if      self.check_delimiter(DT_DELIM):         state = 89
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(DT_DELIM):         
+                    state = 89
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 89:
                 self.emit_token(tokens, TT_PINCH, 'pinch')
                 state = 0
             elif state == 90:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 91)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 91)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 91:
-                if      self.match_char_and_advance('c'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 92)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('c'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 92)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 92:
-                if      self.match_char_and_advance('i'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 93)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 93)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 93:
-                if      self.match_char_and_advance('p'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 94)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('p'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 94)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 94:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 95)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 95)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 95:
-                if      self.check_delimiter(DT_DELIM):         state = 96
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(DT_DELIM):         
+                    state = 96
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 96:
                 self.emit_token(tokens, TT_RECIPE, 'recipe')
                 state = 0
             elif state == 97:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 98)
-                elif    self.match_char_and_advance('i'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 103)
-                elif    self.match_char_and_advance('k'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 109)
-                elif    self.match_char_and_advance('p'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 113)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 98)
+                elif self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 103)
+                elif self.match_char_and_advance('k'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 109)
+                elif self.match_char_and_advance('p'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 113)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 98:
-                if      self.match_char_and_advance('r'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 99)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('r'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 99)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 99:
-                if      self.match_char_and_advance('v'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 100)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('v'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 100)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 100:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 101)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 101)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 101:
-                if      self.check_delimiter(SPACE_DELIM):      state = 102         # In docs, this is delim0
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 102         # In docs, this is delim0
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 102:
                 self.emit_token(tokens, TT_SERVE, 'serve')
                 state = 0
             elif state == 103:
-                if      self.match_char_and_advance('m'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 104)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('m'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 104)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 104:
-                if      self.match_char_and_advance('m'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 105)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('m'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 105)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 105:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 106)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 106)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 106:
-                if      self.match_char_and_advance('r'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 107)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('r'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 107)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 107:
-                if      self.check_delimiter(SPACE_DELIM):      state = 108         # In docs, this is delim0
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 108         # In docs, this is delim0
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 108:
                 self.emit_token(tokens, TT_SIMMER, 'simmer')
                 state = 0
             elif state == 109:
-                if      self.match_char_and_advance('i'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 110)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 110)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 110:
-                if      self.match_char_and_advance('m'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 111)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('m'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 111)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 111:
-                if      self.check_delimiter(DT_DELIM):         state = 112
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(DT_DELIM):         
+                    state = 112
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 112:
                 self.emit_token(tokens, TT_SKIM, 'skim')
                 state = 0
             elif state == 113:
-                if      self.match_char_and_advance('i'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 114)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 114)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 114:
-                if      self.match_char_and_advance('t'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 115)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('t'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 115)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 115:
-                if      self.check_delimiter(SPACE_DELIM):      state = 116
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 116
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 116:
                 self.emit_token(tokens, TT_SPIT, 'spit')
                 state = 0
             elif state == 117:
-                if      self.match_char_and_advance('a'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 118)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('a'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 118)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 118:
-                if      self.match_char_and_advance('k'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 119)
-                elif    self.match_char_and_advance('s'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 125)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('k'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 119)
+                elif self.match_char_and_advance('s'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 125)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 119:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 120)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 120)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 120:
-                if      self.match_char_and_advance('o'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 121)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('o'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 121)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 121:
-                if      self.match_char_and_advance('u'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 122)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('u'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 122)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 122:
-                if      self.match_char_and_advance('t'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 123)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('t'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 123)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 123:
-                if      self.check_delimiter(WHITE_SPACE):      state = 124
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(WHITE_SPACE):      
+                    state = 124
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 124:
                 self.emit_token(tokens, TT_TAKEOUT, 'takeout')
                 state = 0
             elif state == 125:
-                if      self.match_char_and_advance('t'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 126)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('t'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 126)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 126:
-                if      self.match_char_and_advance('e'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 127)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 127)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 127:
-                if      self.check_delimiter(SPACE_DELIM):      state = 128         # In docs, this is delim0
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 128         # In docs, this is delim0
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 128:
                 self.emit_token(tokens, TT_TASTE, 'taste')
                 state = 0
             elif state == 129:
-                if      self.match_char_and_advance('u'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 130)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('u'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 130)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 130:
-                if      self.match_char_and_advance('m'):       reserved_buffer, state = self.reserve_and_transition(reserved_buffer, state, 131)
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.match_char_and_advance('m'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 131)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 131:
-                if      self.check_delimiter(BOOL_DELIM):       state = 132
-                else:
-                    # fallback to identifier
-                    self.reset_to_position(reserved_start)
-                    identifier = self.current_character
-                    self.read_next_character()
-                    state = 231
+                if self.check_delimiter(BOOL_DELIM):       
+                    state = 132
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
             elif state == 132:
                 self.emit_token(tokens, TT_YUM, 'yum')
                 state = 0
@@ -1585,8 +1282,8 @@ class LexicalAnalyzer:
 
             # Convert errors to string format here
             error_strings = [error.as_string() for error in errors]
-            
-            # Debugging the token
-            print(f"Tokens so far: {tokens}")
+
+        # Debugging the token
+        print(f"Tokens produced: {tokens}")
 
         return tokens, error_strings
