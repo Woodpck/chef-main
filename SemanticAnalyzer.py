@@ -2282,6 +2282,7 @@ class SemanticAnalyzer:
 
         right_node = tail_node.children[1]
         right_value = self._evaluate_condition(right_node)
+
         if tail_node.children[0].value == "<":
             combined = left_value < right_value
             return self._process_logical_or_tail(tail_node.children[2], combined)
@@ -2402,7 +2403,7 @@ class SemanticAnalyzer:
                     else:
                         # Normal <logical_or> (no negation)
                         value = self._evaluate_expression(first_child)
-                        return value
+
                 else:
                     line_num = getattr(node, 'line_number', None)
                     self.errors.append(SemanticError("NO_PRIMARY_NODE", "Primary node missing!", line_num))
@@ -2411,6 +2412,33 @@ class SemanticAnalyzer:
                 return self._process_relational_tail(tail_node, left_value)
             else:
                 return self._evaluate_expression(node.children[0])
+
+        elif node.value == "<primary>":
+            print("Processing <primary> node")
+            if not node.children:
+                return None
+
+            first_child = node.children[0]
+
+            if first_child.value == "!":
+                # Handle "!(<condition>)"
+                print("Found ! (negation) node")
+                inner_condition = node.children[2]  # because structure: ! ( <condition> )
+                return self._evaluate_condition(inner_condition)
+            elif first_child.value == "!!":
+                # Handle "!!(<condition>)"
+                print("Found !! (double-negation) node")
+                inner_condition = node.children[2]  # because structure: !! ( <condition> )
+                return self._evaluate_condition(inner_condition)
+            elif first_child.value == "yum":
+                print(f"Found: {node.value} => processing")
+                return True
+            elif first_child.value == "bleh":
+                print(f"Found: {node.value} => processing")
+                return False
+            else:
+                # Normal <logical_or> (no negation)
+                return self._evaluate_expression(first_child)
 
         # Handle value nodes
         elif node.value == "<arithmetic_exp>":
