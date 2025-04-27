@@ -124,10 +124,10 @@ class SemanticAnalyzer:
         # Define type compatibility rules
         self.type_compatibility = {
             "pinch": ["pinch"],           # Integers
-            "skim": ["skim", "pinch"],    # Floats can accept integers
+            "skim": ["skim"],    # Floats can accept integers
             "pasta": ["pasta"],           # Strings
             "recipe": ["recipe"],         # Arrays
-            "bool": ["bool", "pinch"]     # Booleans can accept integers (0/1)
+            "bool": ["bool"]     # Booleans can accept integers (0/1)
         }
 
     def analyze(self, parse_tree, has_syntax_errors=False):
@@ -462,62 +462,68 @@ class SemanticAnalyzer:
         
         if not node.children or len(node.children) < 2:
             return
-            
-        # Get the variable type
-        data_type_node = node.children[0].children[0]
-        var_type = data_type_node.value
-        print(f"Variable type: {var_type}")
-        
-        # Get the variable name
-        id_node = node.children[1]
-        var_name = id_node.value
-        print(f"Variable name: {var_name}")
-        
-        # Create and add the symbol
-        symbol = Symbol(var_name, var_type)
-        self.current_scope.add(var_name, symbol)
-        print(f"Added symbol: {symbol}")
-        
-        # Handle initialization if present
-        if len(node.children) > 2 and node.children[2].value == "<dec_or_init>":
-            init_node = node.children[2]
-            if init_node.children and init_node.children[0].value == "=":
-                literals_node = init_node.children[1]
-                print(f"Literals node: {literals_node.value if hasattr(literals_node, 'value') else 'No value'}")
-                
-                # Extract the literal value
-                value = None
-                if literals_node.value == "<literals>":
-                    if literals_node.children and len(literals_node.children) > 0:
-                        literal_child = literals_node.children[0]
-                        if hasattr(literal_child, 'node_type'):
-                            if literal_child.node_type == "pinchliterals":
-                                try:
-                                    value = int(literal_child.value)
-                                    print(f"Extracted literal pinch value: {value}")
-                                except ValueError:
-                                    print(f"Invalid pinch literal: {literal_child.value}")
-                            elif literal_child.node_type == "skimliterals":
-                                try:
-                                    value = float(literal_child.value)
-                                    print(f"Extracted literal skim value: {value}")
-                                except ValueError:
-                                    print(f"Invalid skim literal: {literal_child.value}")
-                            elif literal_child.node_type == "pastaliterals":
-                                value = literal_child.value.strip('"')
-                                print(f"Extracted literal pasta value: {value}")
-                
-                if value is not None:
-                    symbol.set_value(value)
-                    print(f"Initialized {var_name} with value: {value}")
-                else:
-                    # If direct extraction failed, try the evaluator
-                    value = self._evaluate_expression(literals_node)
+
+        # Determine whether this is an array declaration or a regular variable declaration.
+        if node.children and node.children[0].value == 'recipe':
+            self._handle_array_declaration(node)
+        else:
+            # Get the variable type
+            data_type_node = node.children[0].children[0]
+            var_type = data_type_node.value
+            print(f"Variable type: {var_type}")
+
+            # Get the variable name
+            id_node = node.children[1]
+            var_name = id_node.value
+            print(f"Variable name: {var_name}")
+
+            # Create and add the symbol
+            symbol = Symbol(var_name, var_type)
+            self.current_scope.add(var_name, symbol)
+            print(f"Added symbol: {symbol}")
+
+            # Handle initialization if present
+            if len(node.children) > 2 and node.children[2].value == "<dec_or_init>":
+                init_node = node.children[2]
+                if init_node.children and init_node.children[0].value == "=":
+                    literals_node = init_node.children[1]
+                    print(f"Literals node: {literals_node.value if hasattr(literals_node, 'value') else 'No value'}")
+
+                    # Extract the literal value
+                    value = None
+                    if literals_node.value == "<literals>":
+                        if literals_node.children and len(literals_node.children) > 0:
+                            literal_child = literals_node.children[0]
+                            if hasattr(literal_child, 'node_type'):
+                                if literal_child.node_type == "pinchliterals":
+                                    try:
+                                        value = int(literal_child.value.replace("~", "-"))
+                                        print(f"Extracted literal pinch value: {value}")
+                                    except ValueError:
+                                        print(f"Invalid pinch literal: {literal_child.value}")
+                                elif literal_child.node_type == "skimliterals":
+                                    try:
+                                        value = float(literal_child.value.replace("~", "-"))
+                                        print(f"Extracted literal skim value: {value}")
+                                    except ValueError:
+                                        print(f"Invalid skim literal: {literal_child.value}")
+                                elif literal_child.node_type == "pastaliterals":
+                                    value = literal_child.value.strip('"')
+                                    print(f"Extracted literal pasta value: {value}")
+                                elif literal_child.node_type == "<yum_or_bleh>":
+                                    bool_val = literal_child.children[0].value
+                                    value = bool_val
                     if value is not None:
                         symbol.set_value(value)
-                        print(f"Initialized {var_name} with evaluated value: {value}")
+                        print(f"Initialized {var_name} with value: {value}")
+                    else:
+                        # If direct extraction failed, try the evaluator
+                        value = self._evaluate_expression(literals_node)
+                        if value is not None:
+                            symbol.set_value(value)
+                            print(f"Initialized {var_name} with evaluated value: {value}")
         
-        self.generic_visit(node)
+        #self.generic_visit(node)
 
     def _handle_regular_declaration(self, node):
         if len(node.children) < 2:
@@ -802,12 +808,12 @@ class SemanticAnalyzer:
         if hasattr(node, 'node_type'):
             if node.node_type == "pinchliterals":
                 try:
-                    return int(node.value)
+                    return int(node.value.replace("~", "-"))
                 except ValueError:
                     return None
             elif node.node_type == "skimliterals":
                 try:
-                    return float(node.value)
+                    return float(node.value.replace("~", "-"))
                 except ValueError:
                     return None
             elif node.node_type == "pastaliterals":
@@ -1254,15 +1260,15 @@ class SemanticAnalyzer:
                                 identifier=var_name
                             ))
                             return
-                        result = str(listed_value[index_value]).replace('"', '')
+                        result = str(listed_value[index_value]).replace('"', '').replace("-", "~")
                     elif tail_node.children[0].value == "(":
                         return_val = self.get_function_return(initial_node.value, tail_node.children[1])
                         if return_val:
-                            result = str(return_val).replace('"', '')
+                            result = str(return_val).replace('"', '').replace("-", "~")
                 else:
                     symbol = self.lookup_symbol(initial_node.value)
                     print(f"Found symbol: {symbol}")
-                    result = str(symbol.get_value() if hasattr(symbol, 'get_value') else "")
+                    result = str(symbol.get_value() if hasattr(symbol, 'get_value') else "").replace("-", "~")
 
             else:
                 print("acts as a fallback to do some shit[serve]")
@@ -1318,15 +1324,15 @@ class SemanticAnalyzer:
                                             identifier=var_name
                                         ))
                                         return
-                                    result += str(listed_value[index_value]).replace('"', '')
+                                    result += str(listed_value[index_value]).replace('"', '').replace("-", "~")
                                 elif tail_node.children[0].value == "(":
                                     return_val = self.get_function_return(next_value.value, tail_node.children[1])
                                     if return_val:
-                                        result += str(return_val).replace('"', '')
+                                        result += str(return_val).replace('"', '').replace("-", "~")
                             else:
                                 symbol = self.lookup_symbol(next_value.value)
                                 print(f"Found symbol: {symbol}")
-                                result += str(symbol.get_value() if hasattr(symbol, 'get_value') else "")
+                                result += str(symbol.get_value() if hasattr(symbol, 'get_value') else "").replace("-", "~")
 
                             print(f"Concatenated result: {result}")
                     # Move to next serve_tail if exists
@@ -1828,18 +1834,21 @@ class SemanticAnalyzer:
     #-----------------------------------------------------------------
     def _check_unused_local_variables(self):
         # Skip global scope
-        for table in self.symbol_tables[1:]:
-            unused = table.get_unused()
-            for name in unused:
-                if not name.startswith('__'):
-                    symbol = table.symbols.get(name)
-                    if symbol:
-                        self.errors.append(SemanticError(
-                            code="UNUSED_VARIABLE",
-                            message=f"Unused local variable '{name}'",
-                            identifier=name,
-                            is_warning=True
-                        ))
+        #WHY DO YOU FUCKING NEED THIS?
+        # for table in self.symbol_tables[1:]:
+        #     unused = table.get_unused()
+        #     for name in unused:
+        #         if not name.startswith('__'):
+        #             symbol = table.symbols.get(name)
+        #             if symbol:
+        #                 self.errors.append(SemanticError(
+        #                     code="UNUSED_VARIABLE",
+        #                     message=f"Unused local variable '{name}'",
+        #                     identifier=name,
+        #                     is_warning=True
+        #                 ))
+
+        pass
 
     def _process_arithmetic_exp_tail(self, tail_node, accumulated_value):
         if tail_node.value == "<arithmetic_exp_tail>" and hasattr(tail_node, 'children') and tail_node.children:
@@ -2144,14 +2153,14 @@ class SemanticAnalyzer:
             if hasattr(node, 'node_type'):
                 if node.node_type == "pinchliterals":
                     try:
-                        value = int(node.value)
+                        value = int(node.value.replace("~", "-"))
                         print(f"Parsed literal integer: {value}")
                         return value
                     except (ValueError, TypeError):
                         pass
                 elif node.node_type == "skimliterals":
                     try:
-                        value = float(node.value)
+                        value = float(node.value.replace("~", "-"))
                         print(f"Parsed literal float: {value}")
                         return value
                     except (ValueError, TypeError):
@@ -2421,14 +2430,14 @@ class SemanticAnalyzer:
             if hasattr(node, 'node_type'):
                 if node.node_type == "pinchliterals":
                     try:
-                        value = int(node.value)
+                        value = int(node.value.replace("~", "-"))
                         print(f"Parsed literal integer: {value}")
                         return value
                     except (ValueError, TypeError):
                         pass
                 elif node.node_type == "skimliterals":
                     try:
-                        value = float(node.value)
+                        value = float(node.value.replace("~", "-"))
                         print(f"Parsed literal float: {value}")
                         return value
                     except (ValueError, TypeError):
