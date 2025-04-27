@@ -141,7 +141,7 @@ class Error:
 # NEW INVALID CLASS
 class LexicalError(Error):
     def __init__(self, pos_start, pos_end, details):
-        super().__init__(pos_start, pos_end, "Lexical Error", details)
+        super().__init__(pos_start, pos_end, "LexicalError", details)
 
 # OLD INVALID
 class IllegalCharError(Error):
@@ -236,6 +236,10 @@ class LexicalAnalyzer:
             return True, literal
         return False, literal
 
+    def display_lexical_error(self, start_pos, end_pos, error_ref, error_message):
+        self.read_next_character()
+        error_ref.append(LexicalError(start_pos, end_pos, error_message))
+
     def tokenize(self, code):
         tokens = []
         errors = []
@@ -307,8 +311,10 @@ class LexicalAnalyzer:
                 elif    self.match_char_and_advance('"'):       state = 206
                 
                 # pinch and skim literals 
-                elif self.match_char_and_advance('~'):
+                elif self.current_character == '~':
                     is_negative = True
+                    negative_sign_pos = self.pos.copy()
+                    self.read_next_character()
                     state = 209
                 elif self.current_character.isdigit():       
                     is_negative = False
@@ -324,10 +330,9 @@ class LexicalAnalyzer:
                 elif    self.match_char_and_advance(':'):       state = 237
                 elif    self.check_delimiter(WHITE_SPACE):      self.read_next_character()          # Captures space, newline, and tab                    
                 else:
-                    pos_start = self.pos.copy()
+                    '''Captures characters not present above like: @'''
                     invalid_character = self.current_character
-                    self.read_next_character()
-                    errors.append(LexicalError(pos_start, self.pos, f"Invalid character '{invalid_character}'"))
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
 
             elif state == 1:
@@ -1193,9 +1198,7 @@ class LexicalAnalyzer:
                     print('YOU EXCEEDED THE LIMIT')
                     state = 301  # Error: max length exceeded
                 else:
-                    pos_start = str_start_.copy()
-                    pos_end = self.pos.copy()
-                    errors.append(LexicalError(pos_start, pos_end, "Unterminated string literal"))
+                    self.display_lexical_error(str_start_.copy(), self.pos.copy(), errors, f"Unterminated string literal")
                     state = 0
             elif state == 207:
                 if      self.check_delimiter(PASTA_DELIM):      state = 208
@@ -1207,7 +1210,10 @@ class LexicalAnalyzer:
                 number_literal = "-" if is_negative else ""
                 is_digit, number_literal = self.append_digit_and_advance(number_literal)
                 if      is_digit:                               state = 210
-                else:                                           state = 300         # !REVISIT: handle misuse of ~
+                else:                                           
+                    '''Captures example: ~ without number after'''
+                    self.display_lexical_error(negative_sign_pos, self.pos, errors, f"Expected digit after '~'")
+                    state = 0
             elif state == 210:
                 is_digit, number_literal = self.append_digit_and_advance(number_literal)
                 if      is_digit:                               state = 211
@@ -1242,8 +1248,19 @@ class LexicalAnalyzer:
                 else:                                           state = 218
             elif state == 218:
                 if      self.check_delimiter(NUM_DELIM):        state = 219
-                elif    self.match_char_and_advance('.'):       state = 220
-                else:                                           state = 300             # !REVISIT: handle error for exceed pinch literal limit
+                elif    self.current_character == '.':
+                    decimal_pos = self.pos.copy()
+                    self.read_next_character()      
+                    state = 220
+                elif not self.current_character.isdigit():
+                    '''Captures example: 123a'''
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid suffix '{invalid_character}' on pinch literal")
+                    state = 0
+                else:
+                    '''Captures example: 1234567891'''              
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Pinch literal exceeds 9 digits")
+                    state = 0
             elif state == 219:
                 self.emit_token(tokens, TT_PINCH_LITERAL, number_literal)
                 state = 0
@@ -1251,42 +1268,59 @@ class LexicalAnalyzer:
                 number_literal += '.'
                 is_digit, number_literal = self.append_digit_and_advance(number_literal)
                 if      is_digit:                               state = 221
-                else:                                           state = 230
+                else:                                           state = 229
             elif state == 221:
                 is_digit, number_literal = self.append_digit_and_advance(number_literal)
                 if      is_digit:                               state = 222
-                else:                                           state = 230
+                else:                                           state = 229
             elif state == 222:
                 is_digit, number_literal = self.append_digit_and_advance(number_literal)
                 if      is_digit:                               state = 223
-                else:                                           state = 230
+                else:                                           state = 229
             elif state == 223:
                 is_digit, number_literal = self.append_digit_and_advance(number_literal)
                 if      is_digit:                               state = 224
-                else:                                           state = 230
+                else:                                           state = 229
             elif state == 224:
                 is_digit, number_literal = self.append_digit_and_advance(number_literal)
                 if      is_digit:                               state = 225
-                else:                                           state = 230
+                else:                                           state = 229
             elif state == 225:
                 is_digit, number_literal = self.append_digit_and_advance(number_literal)
                 if      is_digit:                               state = 226
-                else:                                           state = 230
+                else:                                           state = 229
             elif state == 226:
                 is_digit, number_literal = self.append_digit_and_advance(number_literal)
                 if      is_digit:                               state = 227
-                else:                                           state = 230
+                else:                                           state = 229
             elif state == 227:
                 is_digit, number_literal = self.append_digit_and_advance(number_literal)
                 if      is_digit:                               state = 228
-                else:                                           state = 230
+                else:                                           state = 229
             elif state == 228:
                 is_digit, number_literal = self.append_digit_and_advance(number_literal)
                 if      is_digit:                               state = 229
-                else:                                           state = 230
+                else:                                           state = 229
             elif state == 229:
-                if      self.check_delimiter(NUM_DELIM):        state = 230
-                else:                                           state = 300             # !REVISIT: handle error for exceed skim literal limit
+                if number_literal.endswith('.'):
+                    '''Captures example: 123. without number after'''
+                    self.display_lexical_error(decimal_pos, self.pos, errors, f"Expected digit after '.'")
+                    state = 0
+                elif self.check_delimiter(NUM_DELIM):        
+                    state = 230
+                elif self.current_character == '.':
+                    '''Captures example: 123..1 or 123.1.1'''
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Too many decimal points in skim literal")
+                    state = 0
+                elif not self.current_character.isdigit():
+                    '''Captures example: 123.a'''
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid suffix '{invalid_character}' on skim literal")
+                    state = 0
+                else:
+                    '''Captures example: 0.1234567891'''
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Skim literal exceeds 9 digits")
+                    state = 0
             elif state == 230:
                 self.emit_token(tokens, TT_SKIM_LITERAL, number_literal)
                 state = 0
@@ -1300,10 +1334,9 @@ class LexicalAnalyzer:
                 elif self.check_delimiter(ID_DELIM):
                     state = 232
                 else:
-                    pos_start = self.pos.copy()
+                    '''Captures example: my_var!'''
                     invalid_character = self.current_character
-                    self.read_next_character()
-                    errors.append(LexicalError(pos_start, self.pos, f"Invalid character '{invalid_character}'"))
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
             elif state == 232:
                 self.identifier_count += 1
