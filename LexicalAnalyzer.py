@@ -143,11 +143,6 @@ class LexicalError(Error):
     def __init__(self, pos_start, pos_end, details):
         super().__init__(pos_start, pos_end, "LexicalError", details)
 
-# OLD INVALID
-class IllegalCharError(Error):
-    def __init__(self, pos_start, pos_end, details):
-        super().__init__(pos_start, pos_end, 'Illegal Character', details)
-
 # POSITION
 class Position:
     def __init__(self, idx, ln, col, ftxt):
@@ -288,7 +283,6 @@ class LexicalAnalyzer:
                 # in original lexer, they skipped 133
                 # in original lexer, they skipped 135
                 # in original lexer, they skipped 137
-                # NEXT TASK: FIX ERROR CATCHING AND OTHER STUFF
                 # reserved symbols
                 elif    self.match_char_and_advance('-'):       state = 139
                 elif    self.match_char_and_advance(','):       state = 145
@@ -976,25 +970,41 @@ class LexicalAnalyzer:
                 if      self.check_delimiter(DELIM_3):          state = 140         # Check DELIM_3 delimiters
                 elif    self.match_char_and_advance('-'):       state = 141
                 elif    self.match_char_and_advance('='):       state = 143
-                else:                                           state = 300
+                else:
+                    '''Captures example: a -: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 140:
                 self.emit_token(tokens, TT_MINUS, '-')
                 state = 0
             elif state == 141:
                 if      self.check_delimiter(DELIM_4):          state = 142
-                else:                                           state = 300
+                else:
+                    '''Captures example: a--! or --!a'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 142:
                 self.emit_token(tokens, TT_DECREMENT, '--')
                 state = 0
             elif state == 143:
                 if      self.check_delimiter(DELIM_5):          state = 144         # Check DELIM_5 delimiters
-                else:                                           state = 300
+                else:
+                    '''Captures example: a -=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 144:
                 self.emit_token(tokens, TT_MINUS_EQUAL, '-=')
                 state = 0
             elif state == 145:
                 if      self.check_delimiter(DELIM_6):          state = 146
-                else:                                           state = 300
+                else:
+                    '''Captures example: a,: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 146:
                 self.emit_token(tokens, TT_COMMA, ',')
                 state = 0
@@ -1002,77 +1012,129 @@ class LexicalAnalyzer:
                 if      self.check_delimiter(OPARAN_DELIM):     state = 148         # In docs, this is delim7
                 elif    self.match_char_and_advance('!'):       state = 149
                 elif    self.match_char_and_advance('='):       state = 151
-                else:                                           state = 300
+                else:
+                    '''Captures example: !:(a)'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}', expected '!' or '('")
+                    state = 0
             elif state == 148:
                 self.emit_token(tokens, TT_NEGATE_OP, '!')
                 state = 0
             elif state == 149:
                 if      self.check_delimiter(DELIM_3):          state = 150
-                else:                                           state = 300
+                else:
+                    '''Captures example: !!:(a)'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 150:
                 self.emit_token(tokens, TT_LOGICAL_NOT, '!!')
                 state = 0
             elif state == 151:
                 if      self.check_delimiter(DELIM_8):          state = 152
-                else:                                           state = 300
+                else:
+                    '''Captures example: a !=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 152:
                 self.emit_token(tokens, TT_NOT_EQUAL, '!=')
                 state = 0
             elif state == 153:
                 if      self.match_char_and_advance('?'):       state = 154
-                else:                                           state = 300
+                else:
+                    '''Captures example: a ?: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}', expected '?'")
+                    state = 0
             elif state == 154:
                 if      self.check_delimiter(DELIM_3):          state = 155
-                else:                                           state = 300
+                else:
+                    '''Captures example: a ??: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 155:
                 self.emit_token(tokens, TT_LOGICAL_OR, '??')
                 state = 0
             elif state == 156:
                 if      self.check_delimiter(DELIM_12):         state = 157
-                else:                                           state = 300
+                else:
+                    '''Captures example: (:a < b)'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 157:
                 self.emit_token(tokens, TT_OPARAN, '(')
                 state = 0
             elif state == 158:
                 if      self.check_delimiter(DELIM_13):         state = 159
-                else:                                           state = 300
+                else:
+                    '''Captures example: (a < b)'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 159:
                 self.emit_token(tokens, TT_CPARAN, ')')
                 state = 0
             elif state == 160:
                 if      self.check_delimiter(DELIM_14):         state = 161
-                else:                                           state = 300
+                else:
+                    '''Captures example: a[:4]'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 161:
                 self.emit_token(tokens, TT_OBRACE, '[')
                 state = 0
             elif state == 162:
                 if      self.check_delimiter(DELIM_15):         state = 163
-                else:                                           state = 300
+                else:
+                    '''Captures example: a[4]:'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 163:
                 self.emit_token(tokens, TT_CBRACE, ']')
                 state = 0
             elif state == 164:
                 if      self.check_delimiter(DELIM_16):         state = 165
-                else:                                           state = 300
+                else:
+                    '''Captures example: {:'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 165:
                 self.emit_token(tokens, TT_OBRACK, '{')
                 state = 0
             elif state == 166:
                 if      self.check_delimiter(DELIM_17):         state = 167
-                else:                                           state = 300
+                else:
+                    '''Captures example: }:'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 167:
                 self.emit_token(tokens, TT_CBRACK, '}')
                 state = 0
             elif state == 168:
                 if      self.check_delimiter(DELIM_3):          state = 169         # Set to similar delim as -
                 elif    self.match_char_and_advance('='):       state = 170         # This is *=, there is no mention in docs transition diagram
-                else:                                           state = 300
+                else:
+                    '''Captures example: a *: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 169:
                 self.emit_token(tokens, TT_MULTIPLY, '*')
                 state = 0
             elif state == 170:
                 if      self.check_delimiter(DELIM_5):          state = 171         # Set to similar delim as -=
-                else:                                           state = 300
+                else:
+                    '''Captures example: a *=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 171:
                 self.emit_token(tokens, TT_MULTIPLY_EQUAL, '*=')
                 state = 0
@@ -1081,13 +1143,21 @@ class LexicalAnalyzer:
                 elif    self.match_char_and_advance('='):       state = 174         # In docs, there is no /= in transition diagram but they have the operation in practice
                 elif    self.match_char_and_advance('/'):       state = 176         # This is for singleline comment
                 elif    self.match_char_and_advance('-'):       state = 178         # This is for multiline comment
-                else:                                           state = 300
+                else:
+                    '''Captures example: a /: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 173:
                 self.emit_token(tokens, TT_DIVIDE, '/')
                 state = 0
             elif state == 174:
                 if      self.check_delimiter(DELIM_5):          state = 175
-                else:                                           state = 300
+                else:
+                    '''Captures example: a /=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 175:
                 self.emit_token(tokens, TT_DIVIDE_EQUAL, '/=')
                 state = 0
@@ -1098,6 +1168,7 @@ class LexicalAnalyzer:
             elif state == 177:
                 self.read_next_character()
                 state = 0
+            # !REVISIT: Handle unterminated multi-line comment lexical error
             elif state == 178:
                 if      self.match_char_and_advance('-'):       state = 179       
                 else:                                           self.read_next_character()
@@ -1108,23 +1179,39 @@ class LexicalAnalyzer:
                 state = 0
             elif state == 181:
                 if      self.match_char_and_advance('&'):       state = 182
-                else:                                           state = 300
+                else:                                           
+                    '''Captures example: a &: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}', expected '&'")
+                    state = 0
             elif state == 182:
                 if      self.check_delimiter(DELIM_3):          state = 183
-                else:                                           state = 300
+                else:
+                    '''Captures example: a &&: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 183:
                 self.emit_token(tokens, TT_LOGICAL_AND, '&&')
                 state = 0
             elif state == 184:
                 if      self.check_delimiter(DELIM_3):          state = 185
                 elif    self.match_char_and_advance('='):       state = 186
-                else:                                           state = 300
+                else:
+                    '''Captures example: a %: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 185:
                 self.emit_token(tokens, TT_MODULO, '%')
                 state = 0
             elif state == 186:
                 if      self.check_delimiter(DELIM_5):          state = 187
-                else:                                           state = 300
+                else:
+                    '''Captures example: a %=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 187:
                 self.emit_token(tokens, TT_MODULO_EQUAL, '%=')
                 state = 0
@@ -1132,58 +1219,94 @@ class LexicalAnalyzer:
                 if      self.check_delimiter(DELIM_1):          state = 189
                 elif    self.match_char_and_advance('+'):       state = 190
                 elif    self.match_char_and_advance('='):       state = 192
-                else:                                           state = 300
+                else:
+                    '''Captures example: a +: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 189:
                 self.emit_token(tokens, TT_PLUS, '+')
                 state = 0
             elif state == 190:
                 if      self.check_delimiter(DELIM_4):          state = 191
-                else:                                           state = 300
+                else:
+                    '''Captures example: a++! or ++!a'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 191:
                 self.emit_token(tokens, TT_INCREMENT, '++')
                 state = 0
             elif state == 192:
                 if      self.check_delimiter(DELIM_5):          state = 193
-                else:                                           state = 300
+                else:
+                    '''Captures example: a +=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 193:
                 self.emit_token(tokens, TT_PLUS_EQUAL, '+=')
                 state = 0
             elif state == 194:
                 if      self.check_delimiter(DELIM_3):          state = 195
                 elif    self.match_char_and_advance('='):       state = 196
-                else:                                           state = 300
+                else:
+                    '''Captures example: a <: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 195:
                 self.emit_token(tokens, TT_LESS_THAN, '<')
                 state = 0
             elif state == 196:
                 if      self.check_delimiter(DELIM_5):          state = 197
-                else:                                           state = 300
+                else:                                           
+                    '''Captures example: a <=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 197:
                 self.emit_token(tokens, TT_LESS_THAN_EQUAL, '<=')
                 state = 0
             elif state == 198:
                 if      self.check_delimiter(DELIM_8):          state = 199
                 elif    self.match_char_and_advance('='):       state = 200
-                else:                                           state = 300
+                else:
+                    '''Captures example: a =! b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 199:
                 self.emit_token(tokens, TT_ASSIGN, '=')
                 state = 0
             elif state == 200:
                 if      self.check_delimiter(DELIM_8):          state = 201
-                else:                                           state = 300
+                else:
+                    '''Captures example: a ==> b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 201:
                 self.emit_token(tokens, TT_EQUAL_TO, '==')
                 state = 0
             elif state == 202:
                 if      self.check_delimiter(DELIM_3):          state = 203
                 elif    self.match_char_and_advance('='):       state = 204
-                else:                                           state = 300
+                else:                                           
+                    '''Captures example: a >: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 203:
                 self.emit_token(tokens, TT_GREATER_THAN, '>')
                 state = 0
             elif state == 204:
                 if      self.check_delimiter(DELIM_5):          state = 205         # In docs, this is delim3
-                else:                                           state = 300
+                else:
+                    '''Captures example: a >=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
             elif state == 205:
                 self.emit_token(tokens, TT_GREATER_THAN_EQUAL, '>=')
                 state = 0
@@ -1316,7 +1439,7 @@ class LexicalAnalyzer:
                     state = 230
                 elif self.current_character == '.':
                     '''Captures example: 123..1 or 123.1.1'''
-                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Too many decimal points in skimliteral")
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Expected single '.' in skimliteral")
                     state = 0
                 elif not self.current_character.isdigit():
                     '''Captures example: 123.a'''
@@ -1340,12 +1463,12 @@ class LexicalAnalyzer:
                 elif self.check_delimiter(ID_DELIM):
                     state = 232
                 elif self.current_character not in UNDER_ALPHA_NUM:
-                    '''Captures example: variableNameThatExceeds32Characters'''
+                    '''Captures example: my_var!'''     
                     invalid_character = self.current_character
                     self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
                 else:
-                    '''Captures example: my_var!'''
+                    '''Captures example: variableNameThatExceeds32Characters'''
                     self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Identifier exceeds {MAX_IDENTIFIER_LENGTH} characters")
                     state = 0
             elif state == 232:
@@ -1355,22 +1478,23 @@ class LexicalAnalyzer:
                 state = 0
             elif state == 235:
                 if      self.check_delimiter(WHITE_SPACE):      state = 236
-                else:                                           state = 300
+                else:                                           
+                    '''Captures example: skim a = 3.5;g'''
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid delimiter '{invalid_character}', expected ' ', '\\t', or '\\n'")
+                    state = 0
             elif state == 236:
                 self.emit_token(tokens, TT_SEMI_COLON, ';')
                 state = 0
             elif state == 237:
                 if      self.check_delimiter(WHITE_SPACE):      state = 238
-                else:                                           state = 300
+                else:
+                    '''Captures example: case 3:g'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid delimiter '{invalid_character}', expected ' ', '\\t', or '\\n'")
+                    state = 0
             elif state == 238:
                 self.emit_token(tokens, TT_COLON, ':')
-                state = 0
-            # REMOVE: This will be removed once all errors are accounted for    
-            elif state == 300:
-                pos_start = start_position.copy()
-                char = self.current_character
-                self.read_next_character()
-                errors.append(IllegalCharError(pos_start, self.pos, f"[TO BE REMOVED] Illegal Character '{char}'"))
                 state = 0
 
             # Convert errors to string format here
