@@ -222,6 +222,8 @@ class SemanticAnalyzer:
                         if 'element_type' in symbol.attributes:
                             return symbol.attributes['element_type']
                         return symbol.type
+                elif expr_node.value == "<literals>":
+                    pass
             # If we can't determine the type, log it for debugging
             print(f"Couldn't determine type for: {expr_node.value if hasattr(expr_node, 'value') else 'unknown'}")
             return None
@@ -294,7 +296,10 @@ class SemanticAnalyzer:
         # For parenthesized expressions
         if len(expr_node.children) >= 3 and hasattr(expr_node.children[0], 'value') and expr_node.children[0].value == "(":
             return self.get_expression_type(expr_node.children[1])
-        
+
+        if expr_node.value == "<yum_or_bleh>":
+            return "bool"
+
         # Debug - log if we couldn't determine the type
         print(f"Failed to determine type for expression: {expr_node.value if hasattr(expr_node, 'value') else 'unknown'}")
         return None
@@ -442,7 +447,7 @@ class SemanticAnalyzer:
                             print("Found regular declaration in global scope")
                             self._handle_regular_declaration(child)
             
-            self.generic_visit(node)
+            #self.generic_visit(node)
         except IndexError as e:
             print(f"IndexError in visit_global_dec: {e}")
             # Add the stack trace for debugging
@@ -522,7 +527,9 @@ class SemanticAnalyzer:
                         if value is not None:
                             symbol.set_value(value)
                             print(f"Initialized {var_name} with evaluated value: {value}")
-        
+
+            #handle <next_dec_or_init>
+
         #self.generic_visit(node)
 
     def _handle_regular_declaration(self, node):
@@ -559,7 +566,7 @@ class SemanticAnalyzer:
                     
                     # Try to extract literal value directly first
                     value = self._extract_literal_value(literal_node)
-                    
+
                     if value is not None:
                         symbol.set_value(value)
                         print(f"Set symbol {var_name} value directly: {value}")
@@ -572,7 +579,7 @@ class SemanticAnalyzer:
                     
                     # Check type compatibility
                     self._check_initialization(var_name, var_type, literal_node, line_num)
-                
+
                 # Process additional declarations (variables after commas)
                 print(f"\nProcessing additional variables for {var_type} declaration")
                 
@@ -619,7 +626,7 @@ class SemanticAnalyzer:
                                     
                                     # Check type compatibility
                                     self._check_initialization(next_id, var_type, next_literal_node, line_num)
-                                
+
                                 # Check for more variables (recursive search)
                                 find_additional_variables(next_dec, depth + 1)
                     
@@ -631,7 +638,7 @@ class SemanticAnalyzer:
                 
                 # Start exploring from the first dec_or_init node
                 find_additional_variables(dec_or_init)
-                
+
                 # Print final state for debug purposes
                 print("\nFinal variable state after processing multi-variable declaration:")
                 for name, sym in variables_in_declaration.items():
@@ -645,8 +652,10 @@ class SemanticAnalyzer:
     def _check_initialization(self, var_name, var_type, expr_node, line_num):
         """Helper method to check initialization type compatibility"""
         expr_type = self.get_expression_type(expr_node)
+
         if expr_type is not None and var_type is not None:
             compatible = self.are_types_compatible(var_type, expr_type)
+
             if not compatible:
                 # Convert base types to literal types for error message
                 literal_type = expr_type + "literals" if expr_type in ["pinch", "skim", "pasta"] else expr_type
@@ -801,6 +810,7 @@ class SemanticAnalyzer:
 
     def _extract_literal_value(self, node):
         """Helper method to extract literal values from nodes"""
+
         if node is None:
             return None
             
@@ -818,11 +828,17 @@ class SemanticAnalyzer:
                     return None
             elif node.node_type == "pastaliterals":
                 return node.value.strip('"')
-        
+            elif node.node_type == "bleh":
+                return False
+            elif node.node_type == "yum":
+                return True
+
         # Node with children
         if hasattr(node, 'value') and hasattr(node, 'children') and node.children:
             # Handle literals node
             if node.value == "<literals>" and len(node.children) > 0:
+                return self._extract_literal_value(node.children[0])
+            elif node.value == "<yum_or_bleh>":
                 return self._extract_literal_value(node.children[0])
         
         return None
@@ -1175,6 +1191,13 @@ class SemanticAnalyzer:
         if not is_void:
             return return_val
 
+    def replace_if_bool(self, s):
+        if s == "True":
+            return "yum"
+        elif s == "False":
+            return "bleh"
+        else:
+            return s
 
     def visit_serve_statement(self, node, parent=None):
         """Handle the 'serve' statement (function call)"""
@@ -1243,6 +1266,7 @@ class SemanticAnalyzer:
                         identifier=initial_node.value
                     ))
                     return
+
                 #NEED TO FUCKING CONFIRM IF ARRAYS AND FUNCTIONS CAN BE CALLED INSIDE THE DAMN SERVE
                 if tail_node.children:
                     if tail_node.children[0].value == "[":
@@ -1260,15 +1284,15 @@ class SemanticAnalyzer:
                                 identifier=var_name
                             ))
                             return
-                        result = str(listed_value[index_value]).replace('"', '').replace("-", "~")
+                        result = self.replace_if_bool(str(listed_value[index_value]).replace('"', '').replace("-", "~"))
                     elif tail_node.children[0].value == "(":
                         return_val = self.get_function_return(initial_node.value, tail_node.children[1])
                         if return_val:
-                            result = str(return_val).replace('"', '').replace("-", "~")
+                            result = self.replace_if_bool(str(return_val).replace('"', '').replace("-", "~"))
                 else:
                     symbol = self.lookup_symbol(initial_node.value)
                     print(f"Found symbol: {symbol}")
-                    result = str(symbol.get_value() if hasattr(symbol, 'get_value') else "").replace("-", "~")
+                    result = self.replace_if_bool(str(symbol.get_value() if hasattr(symbol, 'get_value') else "").replace("-", "~"))
 
             else:
                 print("acts as a fallback to do some shit[serve]")
@@ -1324,15 +1348,15 @@ class SemanticAnalyzer:
                                             identifier=var_name
                                         ))
                                         return
-                                    result += str(listed_value[index_value]).replace('"', '').replace("-", "~")
+                                    result += self.replace_if_bool(str(listed_value[index_value]).replace('"', '').replace("-", "~"))
                                 elif tail_node.children[0].value == "(":
                                     return_val = self.get_function_return(next_value.value, tail_node.children[1])
                                     if return_val:
-                                        result += str(return_val).replace('"', '').replace("-", "~")
+                                        result += self.replace_if_bool(str(return_val).replace('"', '').replace("-", "~"))
                             else:
                                 symbol = self.lookup_symbol(next_value.value)
                                 print(f"Found symbol: {symbol}")
-                                result += str(symbol.get_value() if hasattr(symbol, 'get_value') else "").replace("-", "~")
+                                result += self.replace_if_bool(str(symbol.get_value() if hasattr(symbol, 'get_value') else "").replace("-", "~"))
 
                             print(f"Concatenated result: {result}")
                     # Move to next serve_tail if exists
@@ -1657,14 +1681,28 @@ class SemanticAnalyzer:
             2: check the fucking condition
             3: loop 1 if the fucking condition is true
         """
+        """NEW, uses python while loop"""
+
         statement_node = node.children[2]
         self.generic_visit(statement_node)
 
         condition_node = node.children[6]
         eval_result = self._evaluate_condition(condition_node)
         print(f"Do-While Condition Evaluation := " + str(eval_result))
-        if eval_result:
-            self._handle_keepmix_loop(node)
+
+        while eval_result:
+            self.generic_visit(statement_node)
+            eval_result = self._evaluate_condition(condition_node)
+
+        """OLD, uses recursion"""
+        # statement_node = node.children[2]
+        # self.generic_visit(statement_node)
+        #
+        # condition_node = node.children[6]
+        # eval_result = self._evaluate_condition(condition_node)
+        # print(f"Do-While Condition Evaluation := " + str(eval_result))
+        # if eval_result:
+        #     self._handle_keepmix_loop(node)
 
     def _handle_simmer_loop(self, node):
         """
@@ -1673,13 +1711,22 @@ class SemanticAnalyzer:
             2: execute the fucking code
             -----fucking loop-----
         """
+        """NEW, just python while loop"""
         condition_node = node.children[2]
         eval_result = self._evaluate_condition(condition_node)
         print(f"While Condition Evaluation := " + str(eval_result))
-        if eval_result:
+        while eval_result:
             statement_node = node.children[5]
             self.generic_visit(statement_node)
-            self._handle_simmer_loop(node)
+            eval_result = self._evaluate_condition(condition_node)
+        """OLD, uses recursion"""
+        # condition_node = node.children[2]
+        # eval_result = self._evaluate_condition(condition_node)
+        # print(f"While Condition Evaluation := " + str(eval_result))
+        # if eval_result:
+        #     statement_node = node.children[5]
+        #     self.generic_visit(statement_node)
+        #     self._handle_simmer_loop(node)
 
     def _handle_for_loop(self, node, loop=False):
         # Expected structure: for ( <assignment> ; <expression> ; <assignment> ) <statement>
@@ -1692,60 +1739,40 @@ class SemanticAnalyzer:
             4: increment/decrement
             -----fucking loop-----
         """
-        if not loop:
-            if len(node.children) < 7:
-                line_num = getattr(node, 'line_number', None)
-                self.errors.append(SemanticError(
-                    code="INVALID_FOR_LOOP",
-                    message="Invalid for loop structure",
-                    line=line_num
-                ))
-                return
 
-            #need to do the assignment first!
-            _dtype = node.children[2]
-            _dname = node.children[3].value
-            _dvalue = node.children[5].children[0]
-            if _dtype.children:
-                # Create symbol and add it to the current scope for the first variable
-                symbol = Symbol(_dname, _dtype.children[0].value)
-                print(f"Adding symbol {_dname} to scope {self.current_scope.debugName}")
-                self.current_scope.add(_dname, symbol)
-                if _dvalue.node_type == "id":
-                    _dvalue = self.lookup_symbol(_dvalue.value)
-                else:
-                    _dvalue = self._extract_literal_value(_dvalue)
-
-                if _dvalue is not None:
-                    symbol.set_value(_dvalue)
+        """NEW, uses python while loop"""
+        #need to do the assignment first!
+        _dtype = node.children[2]
+        _dname = node.children[3].value
+        _dvalue = node.children[5].children[0]
+        if _dtype.children:
+            # Create symbol and add it to the current scope for the first variable
+            symbol = Symbol(_dname, _dtype.children[0].value)
+            print(f"Adding symbol {_dname} to scope {self.current_scope.debugName}")
+            self.current_scope.add(_dname, symbol)
+            if _dvalue.node_type == "id":
+                _dvalue = self.lookup_symbol(_dvalue.value)
             else:
-                symbol = self.lookup_symbol(_dname)
-                if _dvalue.node_type == "id":
-                    _dvalue = self.lookup_symbol(_dvalue.value)
-                else:
-                    _dvalue = self._extract_literal_value(_dvalue)
-                print(f"Replacing value of {_dname} to {_dvalue} from scope {self.current_scope.debugName}")
+                _dvalue = self._extract_literal_value(_dvalue)
 
-                if _dvalue is not None:
-                    symbol.set_value(_dvalue)
+            if _dvalue is not None:
+                symbol.set_value(_dvalue)
+        else:
+            symbol = self.lookup_symbol(_dname)
+            if _dvalue.node_type == "id":
+                _dvalue = self.lookup_symbol(_dvalue.value)
+            else:
+                _dvalue = self._extract_literal_value(_dvalue)
+            print(f"Replacing value of {_dname} to {_dvalue} from scope {self.current_scope.debugName}")
 
-        # Check that the condition expression evaluates to a boolean compatible type
-        # WHY ARE YOU FUCKING CHEKCING THE ID, INSTEAD OF A FUCKING CONDITION!??????? DO YOU EVEN KNOW THE SEQUENCE OF YOUR FUCKING SYMBOLSS!??? PARSE TREEE? AHJJJJJJJJASDJKHSAJKD
+            if _dvalue is not None:
+                symbol.set_value(_dvalue)
 
         condition_expr = node.children[7]
-        #condition_type = self.get_condition_type(condition_expr)
-        #print(condition_type + " " + "="*50)
         eval_result = self._evaluate_condition(condition_expr)
         print(f"For Condition Evaluation := " + str(eval_result))
-        # if not condition_type and condition_type not in ["pinch", "skim", "bool"]:
-        #     line_num = getattr(condition_expr, 'line_number', None)
-        #     self.errors.append(SemanticError(
-        #         code="INVALID_CONDITION",
-        #         message=f"Loop condition must evaluate to a boolean compatible type, got '{condition_type}'",
-        #         line=line_num
-        #     ))
 
-        if eval_result:
+        while eval_result:
             #execute code block
             statement_node = node.children[12]
             self.generic_visit(statement_node)
@@ -1769,7 +1796,88 @@ class SemanticAnalyzer:
             elif var_op == '--':
                 symbol.set_value((symbol.get_value() or 0) - 1)
 
-            self._handle_for_loop(node, True)
+            eval_result = self._evaluate_condition(condition_expr)
+
+
+        """OLD, uses recursion"""
+        # if not loop:
+        #     if len(node.children) < 7:
+        #         line_num = getattr(node, 'line_number', None)
+        #         self.errors.append(SemanticError(
+        #             code="INVALID_FOR_LOOP",
+        #             message="Invalid for loop structure",
+        #             line=line_num
+        #         ))
+        #         return
+        #
+        #     #need to do the assignment first!
+        #     _dtype = node.children[2]
+        #     _dname = node.children[3].value
+        #     _dvalue = node.children[5].children[0]
+        #     if _dtype.children:
+        #         # Create symbol and add it to the current scope for the first variable
+        #         symbol = Symbol(_dname, _dtype.children[0].value)
+        #         print(f"Adding symbol {_dname} to scope {self.current_scope.debugName}")
+        #         self.current_scope.add(_dname, symbol)
+        #         if _dvalue.node_type == "id":
+        #             _dvalue = self.lookup_symbol(_dvalue.value)
+        #         else:
+        #             _dvalue = self._extract_literal_value(_dvalue)
+        #
+        #         if _dvalue is not None:
+        #             symbol.set_value(_dvalue)
+        #     else:
+        #         symbol = self.lookup_symbol(_dname)
+        #         if _dvalue.node_type == "id":
+        #             _dvalue = self.lookup_symbol(_dvalue.value)
+        #         else:
+        #             _dvalue = self._extract_literal_value(_dvalue)
+        #         print(f"Replacing value of {_dname} to {_dvalue} from scope {self.current_scope.debugName}")
+        #
+        #         if _dvalue is not None:
+        #             symbol.set_value(_dvalue)
+        #
+        # # Check that the condition expression evaluates to a boolean compatible type
+        # # WHY ARE YOU FUCKING CHEKCING THE ID, INSTEAD OF A FUCKING CONDITION!??????? DO YOU EVEN KNOW THE SEQUENCE OF YOUR FUCKING SYMBOLSS!??? PARSE TREEE? AHJJJJJJJJASDJKHSAJKD
+        #
+        # condition_expr = node.children[7]
+        # #condition_type = self.get_condition_type(condition_expr)
+        # #print(condition_type + " " + "="*50)
+        # eval_result = self._evaluate_condition(condition_expr)
+        # print(f"For Condition Evaluation := " + str(eval_result))
+        # # if not condition_type and condition_type not in ["pinch", "skim", "bool"]:
+        # #     line_num = getattr(condition_expr, 'line_number', None)
+        # #     self.errors.append(SemanticError(
+        # #         code="INVALID_CONDITION",
+        # #         message=f"Loop condition must evaluate to a boolean compatible type, got '{condition_type}'",
+        # #         line=line_num
+        # #     ))
+        #
+        # if eval_result:
+        #     #execute code block
+        #     statement_node = node.children[12]
+        #     self.generic_visit(statement_node)
+        #     #do the inc_dec
+        #     var_name = node.children[9].children[0].value
+        #     var_op = node.children[9].children[1].children[0].value
+        #
+        #     # Look up the symbol
+        #     symbol = self.current_scope.lookup(var_name)
+        #     if not symbol:
+        #         line_num = getattr(node, 'line_number', None)
+        #         self.errors.append(SemanticError(
+        #             code="UNDEFINED_VARIABLE",
+        #             message=f"VARIABLE '{var_name}' is UNDEFINED!",
+        #             line=line_num
+        #         ))
+        #         return
+        #     print(var_op)
+        #     if var_op == '++':
+        #         symbol.set_value((symbol.get_value() or 0) + 1)
+        #     elif var_op == '--':
+        #         symbol.set_value((symbol.get_value() or 0) - 1)
+        #
+        #     self._handle_for_loop(node, True)
 
 
     #-----------------------------------------------------------------

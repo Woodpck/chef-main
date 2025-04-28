@@ -3,6 +3,11 @@ from LexicalAnalyzer import LexicalAnalyzer
 from SyntaxAnalyzer import SyntaxAnalyzer, LL1Parser, cfg, parse_table, follow_set
 from SemanticAnalyzer import SemanticAnalyzer
 import time
+import sys
+import os
+
+original_stdout = sys.stdout
+sys.stdout = open(os.devnull, 'w')
 
 app = Flask(__name__)
 
