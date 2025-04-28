@@ -295,7 +295,10 @@ class LexicalAnalyzer:
                 elif    self.match_char_and_advance('{'):       state = 164
                 elif    self.match_char_and_advance('}'):       state = 166
                 elif    self.match_char_and_advance('*'):       state = 168
-                elif    self.match_char_and_advance('/'):       state = 172
+                elif    self.current_character == '/':
+                    comment_start_pos = self.pos.copy()
+                    self.read_next_character()
+                    state = 172
                 elif    self.match_char_and_advance('&'):       state = 181
                 elif    self.match_char_and_advance('%'):       state = 184
                 elif    self.match_char_and_advance('+'):       state = 188
@@ -1170,12 +1173,19 @@ class LexicalAnalyzer:
                 state = 0
             # !REVISIT: Handle unterminated multi-line comment lexical error
             elif state == 178:
-                if      self.match_char_and_advance('-'):       state = 179       
+                if      self.match_char_and_advance('-'):       state = 179
+                elif self.current_character == EOF:
+                    self.display_lexical_error(comment_start_pos, self.pos.copy(), errors, "Unterminated multi-line comment")
+                    state = 0       
                 else:                                           self.read_next_character()
             elif state == 179:
                 if      self.match_char_and_advance('/'):       state = 180
+                elif self.current_character == EOF:
+                    self.display_lexical_error(comment_start_pos, self.pos.copy(), errors, "Unterminated multi-line comment")
+                    state = 0
                 else:                                           self.read_next_character()
             elif state == 180:
+                self.read_next_character()
                 state = 0
             elif state == 181:
                 if      self.match_char_and_advance('&'):       state = 182
