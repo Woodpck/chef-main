@@ -110,7 +110,7 @@ def index():
             except Exception as e:
                 error_syntax_text = f"An error occurred during syntax analysis: {e}"
 
-        # Semantic Analysis
+        #Semantic Analysis
         if (action == "Semantic" or action == "Run") and code.strip():
             if not error_tokens_text and not error_syntax_text:
                 try:
@@ -129,7 +129,8 @@ def index():
             elif not error_tokens_text and not error_syntax_text and not error_semantic_text:
                 # Use the existing analyzer instance that was created during semantic analysis
                 if 'analyzer' in locals() and 'parser' in locals():
-                    semantic_errors_exceptions = analyzer.analyze(parser.parse_tree)
+                    #semantic_errors_exceptions = analyzer.analyze(parser.parse_tree)
+
                     if not semantic_errors_exceptions:  # Only proceed if no semantic errors
                         output_text = process_output(analyzer.get_output())
                     else:

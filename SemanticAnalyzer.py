@@ -1,7 +1,6 @@
-from pandas.core.base import NoNewAttributesMixin
-
 from SyntaxAnalyzer import ParseTreeNode
 from datetime import datetime
+from tkinter import simpledialog
 
 
 class SemanticError(Exception):
@@ -179,7 +178,8 @@ class SemanticAnalyzer:
             elif node.value == "serve":
                 self.visit_serve_statement(node, parent)
             elif node.value == "make":
-                self.visit_make_statement(node, parent)
+                if not self.visit_make_statement(node, parent):
+                    return None
 
             if node.value == "spit":
                 # the spit on the main function a terminal, so why tf are you trying to access it through terminal checking, fucking bitch
@@ -1411,12 +1411,43 @@ class SemanticAnalyzer:
         print(f"Argument node type: {arg_node.node_type if hasattr(arg_node, 'node_type') else 'No type'}")
 
         if arg_node.node_type == 'id':
-            #ask for input, for now in the fucking terminal, because I don't know how to pass a value from BE->FE->BE
-            val = input("ask for input: ")
-
+            #val = input("ask for input: ")
+            #raise Exception("Needs input for identifier")
             symbol = self.lookup_symbol(arg_node.value)
+            def validate_input(val):
+                # Check if the value is None (cancelled)
+                if val is None:
+                    return None
+
+                # Check if the value is a valid number (float or int)
+                try:
+                    # Try converting the input to a float (this will handle both int and float cases)
+                    float_val = float(val)
+                    # Check if the value can be safely cast to an int (if it's an integer value)
+                    if float_val.is_integer():
+                        return int(float_val)  # Return as integer
+                    else:
+                        return float_val  # Return as float
+                except ValueError:
+                    # If it's not a number, check if it's a string (non-empty)
+                    if isinstance(val, str) and val.strip() != "":
+                        return val  # Return as string
+                    else:
+                        return None  # Return None if it's an invalid input
+
+            val = simpledialog.askstring("Input needed", f"Please enter value for {node.value}:")
+
+            val = validate_input(val)
+
+            if symbol.type == 'pinch' and not isinstance(val, int) or symbol.type == 'pasta' and not isinstance(val, str) or  symbol.type == 'skim' and not isinstance(val, float) or not val:
+                line_num = getattr(node, 'line_number', None)
+                self.errors.append(SemanticError(
+                    "INVALID_VALUE",
+                    f"{val} is not allowed to be passed to {symbol.type} type",
+                    line=line_num
+                ))
+                return None
             symbol.value = val
-            print(symbol)
             self.output_buffer.append("input: " + str(val) + "")
 
     def _evaluate_function_call(self, func_name):
