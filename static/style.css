@@ -449,3 +449,337 @@ tr:hover {
     color: green;
     font-size: 16px;
 }
+/* Enhanced Animation Styles for ChefScript IDE */
+
+/* Improved particle styles */
+.particle {
+    position: absolute;
+    background: rgba(0, 183, 199, 0.6);
+    border-radius: 50%;
+    pointer-events: none;
+    filter: blur(1px);
+    transition: opacity 0.3s ease;
+}
+
+/* Add pulse effect to some particles */
+.pulse-particle {
+    animation: particlePulse 3s ease-in-out infinite;
+}
+
+@keyframes particlePulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.5); opacity: 0.8; }
+}
+
+/* Data stream effect */
+.data-streams-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.data-stream {
+    position: absolute;
+    width: 2px;
+    background: linear-gradient(to bottom, 
+                               rgba(0, 255, 255, 0), 
+                               rgba(0, 255, 255, 0.3) 10%, 
+                               rgba(0, 255, 255, 0.6) 20%, 
+                               rgba(0, 255, 255, 0.3) 30%, 
+                               rgba(0, 255, 255, 0));
+    overflow: hidden;
+}
+
+.stream-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+.stream-char {
+    font-family: monospace;
+    font-size: 12px;
+    color: rgba(0, 255, 255, 0.8);
+    width: 20px;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: charGlow 1.5s ease-in-out infinite;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.8);
+}
+
+@keyframes charGlow {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+@keyframes dataStreamFall {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+}
+
+/* Interactive cursor effect */
+.cursor-effect {
+    position: fixed;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: radial-gradient(circle, 
+                               rgba(0, 183, 199, 0.2) 0%, 
+                               rgba(0, 183, 199, 0.1) 50%, 
+                               rgba(0, 183, 199, 0) 70%);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    transition: width 0.3s, height 0.3s;
+}
+
+/* Button effects */
+.glow-effect {
+    position: relative;
+    overflow: hidden;
+    animation: buttonPulse 2s infinite;
+    box-shadow: 0 0 10px rgba(0, 183, 199, 0.5);
+    transition: all 0.3s ease;
+}
+
+.glow-effect:hover {
+    box-shadow: 0 0 20px rgba(0, 183, 199, 0.8);
+}
+
+@keyframes buttonPulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(0, 183, 199, 0.5); }
+    50% { box-shadow: 0 0 20px rgba(0, 183, 199, 0.8); }
+}
+
+/* Button ripple effect */
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.4);
+    transform: scale(0);
+    animation: rippleEffect 0.8s linear;
+    pointer-events: none;
+}
+
+@keyframes rippleEffect {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* Text effects */
+.text-glow {
+    transition: all 0.5s ease;
+    box-shadow: 0 0 15px rgba(0, 183, 199, 0.7) !important;
+}
+
+.text-shimmer {
+    background: linear-gradient(90deg, #fff, #00ffff, #0066ff, #00b7c7, #fff);
+    background-size: 200% auto;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent !important;
+    animation: textShimmer 8s infinite;
+}
+
+@keyframes textShimmer {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Typing particles */
+.typing-particle {
+    position: fixed;
+    width: 3px;
+    height: 3px;
+    background-color: #00ffff;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1000;
+    filter: blur(1px);
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.8);
+}
+
+/* 3D floating code blocks */
+.code-blocks-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    perspective: 1000px;
+    z-index: -2;
+    pointer-events: none;
+}
+
+.code-block {
+    position: absolute;
+    width: 200px;
+    background-color: rgba(0, 20, 40, 0.7);
+    border: 1px solid rgba(0, 183, 199, 0.3);
+    border-radius: 4px;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 10px;
+    color: rgba(0, 255, 255, 0.7);
+    pointer-events: none;
+    transform-style: preserve-3d;
+    box-shadow: 0 0 20px rgba(0, 183, 199, 0.2);
+    overflow: hidden;
+}
+
+.code-block pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 150px;
+    overflow: hidden;
+}
+
+/* Success celebration effects */
+.confetti-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.confetti {
+    position: absolute;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.success-glow {
+    animation: successGlow 2s ease-in-out;
+}
+
+@keyframes successGlow {
+    0%, 100% { box-shadow: none; }
+    50% { box-shadow: 0 0 30px rgba(78, 255, 145, 0.6); }
+}
+
+/* Error glitch effect */
+.error-glitch {
+    position: relative;
+    animation: errorShake 0.3s linear;
+}
+
+.glitch-line {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: rgba(255, 107, 107, 0.7);
+    z-index: 1;
+    transform: translateX(-100%);
+    animation: glitchLine 0.3s linear forwards;
+}
+
+@keyframes errorShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-5px); }
+    40% { transform: translateX(5px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+}
+
+@keyframes glitchLine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* New neon glow effect for headers */
+h1, h2 {
+    text-shadow: 0 0 15px rgba(0, 183, 199, 0.7);
+    position: relative;
+}
+
+h1::after, h2::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, 
+                               rgba(0, 183, 199, 0), 
+                               rgba(0, 183, 199, 0.7) 50%, 
+                               rgba(0, 183, 199, 0));
+    animation: lineGlow 3s infinite;
+}
+
+@keyframes lineGlow {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+}
+
+/* Enhanced matrix background effect */
+.matrix-effect {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -3;
+    background-color: rgba(0, 0, 0, 0.9);
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.matrix-column {
+    position: absolute;
+    top: -100px;
+    width: 20px;
+    color: rgba(0, 255, 200, 0.3);
+    font-family: monospace;
+    font-size: 14px;
+    text-align: center;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* Section highlight effect */
+.section-highlight {
+    animation: sectionFocus 2s ease-in-out;
+}
+
+@keyframes sectionFocus {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+}
+
+/* Hover effect for buttons and interactive elements */
+button:not(.tab-button):hover, 
+.action-button:hover {
+    animation: buttonHoverGlow 0.5s forwards;
+}
+
+@keyframes buttonHoverGlow {
+    to {
+        box-shadow: 0 0 25px rgba(0, 255, 255, 0.6);
+        text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+        letter-spacing: 1.2px;
+    }
+}
+
+/* Smooth transitions for all elements */
+* {
+    transition: background-color 0.3s, color 0.3s, border-color 0.3s, opacity 0.3s, transform 0.3s;
+}
