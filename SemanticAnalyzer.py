@@ -2831,33 +2831,35 @@ class SemanticAnalyzer:
     def _apply_operator(self, operator, left, right):
         """Apply binary operator to left and right operands"""
         print(f"Applying operator: {left} {operator} {right}")
-        
+
+        if not isinstance(left, (int, float)) or not isinstance(right, (int, float)):
+            print("Operands must be int or float")
+            return None
+
+        result = None
+
         if operator == "+":
             result = left + right
-            print(f"Addition result: {result}")
-            return result
         elif operator == "-":
             result = left - right
-            print(f"Subtraction result: {result}")
-            return result
         elif operator == "*":
             result = left * right
-            print(f"Multiplication result: {result}")
-            return result
         elif operator == "/":
             if right == 0:
                 print("Division by zero error")
                 return None
-            result = left / right
-            print(f"Division result: {result}")
-            return result
+            if isinstance(left, int) and isinstance(right, int):
+                result = left // right  # Integer division
+            else:
+                result = left / right  # Float division
         elif operator == "%":
             if right == 0:
                 print("Modulo by zero error")
                 return None
             result = left % right
-            print(f"Modulo result: {result}")
-            return result
+
+        print(f"Operation result: {result}")
+        return result
 
     def _apply_condition_operator(self, operator, left, right):
         print(f"Applying condition operator: {left} {operator} {right}")
