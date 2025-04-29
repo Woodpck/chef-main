@@ -1049,7 +1049,10 @@ class SemanticAnalyzer:
                                     if raw_op == "=":
                                         symbol.set_value(value)
                                     elif raw_op == "+=":
-                                        symbol.set_value((symbol.get_value() or 0) + value)
+                                        if symbol.type == 'pasta':
+                                            symbol.set_value(str((symbol.get_value()) or "") + str(value))
+                                        else:
+                                            symbol.set_value(str((symbol.get_value()) or 0) + value)
                                     elif raw_op == "-=":
                                         symbol.set_value((symbol.get_value() or 0) - value)
                                     elif raw_op == "*=":
