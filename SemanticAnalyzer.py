@@ -1418,6 +1418,7 @@ class SemanticAnalyzer:
                 # Check if the value is None (cancelled)
                 if val is None:
                     return None
+                val = val.replace("~", "-")
 
                 # Check if the value is a valid number (float or int)
                 try:
@@ -1439,7 +1440,10 @@ class SemanticAnalyzer:
 
             val = validate_input(val)
 
-            if symbol.type == 'pinch' and not isinstance(val, int) or symbol.type == 'pasta' and not isinstance(val, str) or  symbol.type == 'skim' and not isinstance(val, float) or not val:
+            if (symbol.type == 'pinch' and not isinstance(val, int) or
+                    symbol.type == 'pasta' and not isinstance(val, str) or
+                    symbol.type == 'skim' and not isinstance(val, float) or
+                    val is None):
                 line_num = getattr(node, 'line_number', None)
                 self.errors.append(SemanticError(
                     "INVALID_VALUE",
@@ -1448,7 +1452,7 @@ class SemanticAnalyzer:
                 ))
                 return None
             symbol.value = val
-            self.output_buffer.append("input: " + str(val) + "")
+            self.output_buffer.append("input: " + str(val).replace("-","~") + "")
 
     def _evaluate_function_call(self, func_name):
         """Evaluate a function call and return its output"""
