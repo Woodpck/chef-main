@@ -1052,7 +1052,7 @@ class SemanticAnalyzer:
                                         if symbol.type == 'pasta':
                                             symbol.set_value(str((symbol.get_value()) or "") + str(value))
                                         else:
-                                            symbol.set_value(str((symbol.get_value()) or 0) + value)
+                                            symbol.set_value((symbol.get_value() or 0) + value)
                                     elif raw_op == "-=":
                                         symbol.set_value((symbol.get_value() or 0) - value)
                                     elif raw_op == "*=":
@@ -1160,7 +1160,12 @@ class SemanticAnalyzer:
             else:
                 data_val = self._evaluate_expression(argument_node.children[0])
                 argument_node = argument_node.children[1]
-            new_symbol = Symbol(data_name, data_type)
+            attributes = None
+            if isinstance(data_val, list):
+                dimension = len(data_val)
+                attributes = {'dimensions': dimension, 'element_type': data_type}
+                data_type = "recipe"
+            new_symbol = Symbol(data_name, data_type, attributes)
             new_symbol.set_value(data_val)
             self.current_scope.add(data_name, new_symbol)
 
@@ -2267,7 +2272,7 @@ class SemanticAnalyzer:
                                 var_name = first_child.value
                                 self.errors.append(SemanticError(
                                     code="UNKNOWN_RECIPE_TYPE",
-                                    message=f"Undefined element_type[{symbol.attributes.get("element_type", "None")}]",
+                                    message=f"Undefined element_type[{symbol.attributes.get("element_type", "None")}] {symbol}",
                                     line=line_num,
                                     identifier=var_name
                                 ))
