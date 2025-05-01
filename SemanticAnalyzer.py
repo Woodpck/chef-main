@@ -2,7 +2,6 @@ from SyntaxAnalyzer import ParseTreeNode
 from datetime import datetime
 from tkinter import simpledialog
 
-
 class SemanticError(Exception):
     def __init__(self, code, message, line=None, identifier=None, is_warning=False):
         self.code = code  # e.g., "DUPLICATE_DECLARATION"
@@ -1265,7 +1264,7 @@ class SemanticAnalyzer:
 
 
                 #check if the symbol exist, for fucking error checking alnhjsdljkasldhjkasas
-                if not self.lookup_symbol(initial_node.value):
+                if not self.lookup_symbol(initial_node.value) and not initial_node.value == "len":
                     line_num = getattr(node, 'line_number', None)
                     self.errors.append(SemanticError(
                         code="UNDEFINED_IDENTIFIER",
@@ -1278,6 +1277,15 @@ class SemanticAnalyzer:
                 #NEED TO FUCKING CONFIRM IF ARRAYS AND FUNCTIONS CAN BE CALLED INSIDE THE DAMN SERVE
                 if tail_node.children:
                     if tail_node.children[0].value == "[":
+                        if initial_node.value == "len":
+                            line_num = getattr(node, 'line_number', None)
+                            self.errors.append(SemanticError(
+                                code="NOT_A_RECIPE",
+                                message=f"Identifier [{initial_node.value}] is a function!",
+                                line=line_num,
+                                identifier=initial_node.value
+                            ))
+                            return
                         #it's a fucking array <3 fuck this shi
                         index_value = int(self._evaluate_expression(tail_node.children[1]))
                         symbol = self.lookup_symbol(initial_node.value)
@@ -1294,7 +1302,25 @@ class SemanticAnalyzer:
                             return
                         result = self.replace_if_bool(str(listed_value[index_value]).replace('"', '').replace("-", "~"))
                     elif tail_node.children[0].value == "(":
-                        return_val = self.get_function_return(initial_node.value, tail_node.children[1])
+                        if initial_node.value == "len":
+                            # add error handling here for the parameter and arguments
+                            if not tail_node.children[1].children:
+                                self.errors.append(SemanticError(
+                                    code="MISSING_ARGUMENTS",
+                                    message=f"Doesn't meet the required number of arguments for [{initial_node.value}]!",
+                                    line=getattr(node, 'line_number', None)
+                                ))
+                                return None
+                            if "," in str(tail_node.children[1]):
+                                self.errors.append(SemanticError(
+                                    code="TOO_MANY_ARGUMENTS",
+                                    message=f"Too many arguments provided to function call [{initial_node.value}]!",
+                                    line=getattr(node, 'line_number', None)
+                                ))
+                                return None
+                            return_val = len(self._evaluate_expression(tail_node.children[1]))
+                        else:
+                            return_val = self.get_function_return(initial_node.value, tail_node.children[1])
                         if return_val:
                             result = self.replace_if_bool(str(return_val).replace('"', '').replace("-", "~"))
                 else:
@@ -2164,7 +2190,7 @@ class SemanticAnalyzer:
 
                 if hasattr(first_child, 'node_type') and first_child.node_type == "id":
                     # Look up the variable
-                    if not self.lookup_symbol(first_child.value):
+                    if not self.lookup_symbol(first_child.value) and not first_child.value == "len":
                         line_num = getattr(node, 'line_number', None)
                         self.errors.append(SemanticError(
                             code="UNDEFINED_IDENTIFIER",
@@ -2176,75 +2202,105 @@ class SemanticAnalyzer:
                     if node.children[1].children:
                         #fucking function call
                         if node.children[1].children[0].value == '(':
+                            if first_child.value == "len":
+                                argument_node = node.children[1].children[1]
 
-                            symbol = self.lookup_symbol(first_child.value)
-                            print(f"Found Function Call[symbol]={symbol}")
-                            if symbol.attributes.get("return_type", "none") == 'void':
-                                self.errors.append(SemanticError(
-                                    code="VOID_FUNCTION",
-                                    message="Void functions does not return a value!",
-                                    line=getattr(node, 'line_number', None)
-                                ))
+                                # add error handling here for the parameter and arguments
+                                if not argument_node.children:
+                                    self.errors.append(SemanticError(
+                                        code="MISSING_ARGUMENTS",
+                                        message=f"Doesn't meet the required number of arguments for [{first_child.value}]!",
+                                        line=getattr(node, 'line_number', None)
+                                    ))
+                                    return None
+                                if "," in str(argument_node):
+                                    self.errors.append(SemanticError(
+                                        code="TOO_MANY_ARGUMENTS",
+                                        message=f"Too many arguments provided to function call [{first_child.value}]!",
+                                        line=getattr(node, 'line_number', None)
+                                    ))
+                                    return None
 
-                            argument_node = node.children[1].children[1]
-                            # Create a new scope for the function body
-                            old_scope = self.current_scope
-                            self.current_scope = SymbolTable(debugName=f"function_{first_child.value}",
-                                                             parent=old_scope)
-                            self.symbol_tables.append(self.current_scope)
+                                return_val = len(self._evaluate_expression(argument_node))
+                                return return_val
+                            else:
+                                symbol = self.lookup_symbol(first_child.value)
+                                print(f"Found Function Call[symbol]={symbol}")
+                                if symbol.attributes.get("return_type", "none") == 'void':
+                                    self.errors.append(SemanticError(
+                                        code="VOID_FUNCTION",
+                                        message="Void functions does not return a value!",
+                                        line=getattr(node, 'line_number', None)
+                                    ))
 
-                            # needs to process parameters
-                            parameter_node = symbol.parameters
-                            while parameter_node.children and argument_node.children:
-                                # process the fucking parameter
-                                if parameter_node.children[0].value == ',':
-                                    data_type = parameter_node.children[1].children[0].value
-                                    data_name = parameter_node.children[2].value
-                                    parameter_node = parameter_node.children[3]
-                                else:
-                                    data_type = parameter_node.children[0].children[0].value
-                                    data_name = parameter_node.children[1].value
-                                    parameter_node = parameter_node.children[2]
-                                # assign the fucking argument to the fucking parameter
+                                argument_node = node.children[1].children[1]
+                                # Create a new scope for the function body
+                                old_scope = self.current_scope
+                                self.current_scope = SymbolTable(debugName=f"function_{first_child.value}",
+                                                                 parent=old_scope)
+                                self.symbol_tables.append(self.current_scope)
 
-                                if argument_node.children[0].value == ',':
-                                    data_val = self._evaluate_expression(argument_node.children[1])
-                                    argument_node = argument_node.children[2]
-                                else:
-                                    data_val = self._evaluate_expression(argument_node.children[0])
-                                    argument_node = argument_node.children[1]
-                                new_symbol = Symbol(data_name, data_type)
-                                new_symbol.set_value(data_val)
-                                self.current_scope.add(data_name, new_symbol)
+                                # needs to process parameters
+                                parameter_node = symbol.parameters
+                                while parameter_node.children and argument_node.children:
+                                    # process the fucking parameter
+                                    if parameter_node.children[0].value == ',':
+                                        data_type = parameter_node.children[1].children[0].value
+                                        data_name = parameter_node.children[2].value
+                                        parameter_node = parameter_node.children[3]
+                                    else:
+                                        data_type = parameter_node.children[0].children[0].value
+                                        data_name = parameter_node.children[1].value
+                                        parameter_node = parameter_node.children[2]
+                                    # assign the fucking argument to the fucking parameter
 
-                            # add error handling here for the parameter and arguments
-                            if parameter_node.children:
-                                self.errors.append(SemanticError(
-                                    code="MISSING_ARGUMENTS",
-                                    message="Doesn't meet the required number of arguments!",
-                                    line=getattr(node, 'line_number', None)
-                                ))
-                            if argument_node.children:
-                                self.errors.append(SemanticError(
-                                    code="TOO_MANY_ARGUMENTS",
-                                    message="Too many arguments provided to function call!",
-                                    line=getattr(node, 'line_number', None)
-                                ))
+                                    if argument_node.children[0].value == ',':
+                                        data_val = self._evaluate_expression(argument_node.children[1])
+                                        argument_node = argument_node.children[2]
+                                    else:
+                                        data_val = self._evaluate_expression(argument_node.children[0])
+                                        argument_node = argument_node.children[1]
+                                    new_symbol = Symbol(data_name, data_type)
+                                    new_symbol.set_value(data_val)
+                                    self.current_scope.add(data_name, new_symbol)
 
-                            return_node = symbol.value[2]
-                            #did it this way so that i don't need to add the spit on the visit_statement, fuck that
-                            self.generic_visit(symbol.value[0])
-                            self.generic_visit(symbol.value[1])
+                                # add error handling here for the parameter and arguments
+                                if parameter_node.children:
+                                    self.errors.append(SemanticError(
+                                        code="MISSING_ARGUMENTS",
+                                        message="Doesn't meet the required number of arguments!",
+                                        line=getattr(node, 'line_number', None)
+                                    ))
+                                if argument_node.children:
+                                    self.errors.append(SemanticError(
+                                        code="TOO_MANY_ARGUMENTS",
+                                        message="Too many arguments provided to function call!",
+                                        line=getattr(node, 'line_number', None)
+                                    ))
+
+                                return_node = symbol.value[2]
+                                #did it this way so that i don't need to add the spit on the visit_statement, fuck that
+                                self.generic_visit(symbol.value[0])
+                                self.generic_visit(symbol.value[1])
 
 
-                            return_val = self._evaluate_expression(return_node.children[1])
+                                return_val = self._evaluate_expression(return_node.children[1])
 
-                            self.current_scope = old_scope
-                            self.symbol_tables.pop()
+                                self.current_scope = old_scope
+                                self.symbol_tables.pop()
 
-                            return return_val
+                                return return_val
                         #this is the fucking array call
                         elif node.children[1].children[0].value == '[':
+                            if first_child.value == "len":
+                                line_num = getattr(node, 'line_number', None)
+                                self.errors.append(SemanticError(
+                                    code="NOT_A_RECIPE",
+                                    message=f"Identifier [{first_child.value}] is a function!",
+                                    line=line_num,
+                                    identifier=first_child.value
+                                ))
+                                return
                             print("a"*100)
                             #it's a fucking array <3 fuck this shi
                             index_value = int(self._evaluate_expression(node.children[1].children[1]))
