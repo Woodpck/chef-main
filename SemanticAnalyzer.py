@@ -1444,7 +1444,7 @@ class SemanticAnalyzer:
                     else:
                         return None  # Return None if it's an invalid input
 
-            val = simpledialog.askstring("Input needed", f"Please enter value for {node.value}:")
+            val = simpledialog.askstring("Input needed", f"Please enter value for [{symbol.name}]:")
 
             val = validate_input(val)
 
@@ -2268,15 +2268,18 @@ class SemanticAnalyzer:
                             elif symbol.attributes.get("element_type", "None") == 'pasta':
                                 final_val = str(final_val).replace('"', "")
                             else:
-                                line_num = getattr(node, 'line_number', None)
-                                var_name = first_child.value
-                                self.errors.append(SemanticError(
-                                    code="UNKNOWN_RECIPE_TYPE",
-                                    message=f"Undefined element_type[{symbol.attributes.get("element_type", "None")}] {symbol}",
-                                    line=line_num,
-                                    identifier=var_name
-                                ))
-                                return None
+                                if symbol.type == "pasta":
+                                    final_val = str(final_val).replace('"', "")
+                                else:
+                                    line_num = getattr(node, 'line_number', None)
+                                    var_name = first_child.value
+                                    self.errors.append(SemanticError(
+                                        code="UNKNOWN_RECIPE_TYPE",
+                                        message=f"Undefined element_type[{symbol.attributes.get("element_type", "None")}] {symbol}",
+                                        line=line_num,
+                                        identifier=var_name
+                                    ))
+                                    return None
                             return final_val
 
                     else:
@@ -2840,8 +2843,9 @@ class SemanticAnalyzer:
         """Apply binary operator to left and right operands"""
         print(f"Applying operator: {left} {operator} {right}")
 
-        if not isinstance(left, (int, float)) or not isinstance(right, (int, float)):
-            print("Operands must be int or float")
+        if (not isinstance(left, (int, float)) or not isinstance(right, (int, float))) and not operator == '+':
+            self.errors.append(SemanticError("INVALID_OPERANDS", f"Cannot use '{operator}' to data_types({type(left)},{type(right)})"))
+            print("Operands must be int, float, or string-string")
             return None
 
         result = None
