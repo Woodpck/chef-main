@@ -1,10 +1,11 @@
 from flask import Flask, render_template, request, jsonify
 from LexicalAnalyzer import LexicalAnalyzer
 from SyntaxAnalyzer import SyntaxAnalyzer, LL1Parser, cfg, parse_table, follow_set
-from SemanticAnalyzer import SemanticAnalyzer
+from SemanticAnalyzer import SemanticAnalyzer, SemanticError
 import time
 import sys
 import os
+from tkinter import simpledialog
 
 original_stdout = sys.stdout
 sys.stdout = open(os.devnull, 'w')
@@ -84,76 +85,102 @@ def index():
     active_tab = "errors"
     output_text = ""  # For output tab
     time_execution = 0
+    saved = ''
 
     if request.method == "POST":
         start_time = time.time()
         code = normalize_newlines(request.form.get("code", ""))
         action = request.form.get("action")
 
-        # Lexical Analysis
-        if code.strip():
-            analyzer = LexicalAnalyzer()
-            try:
-                tokens = analyzer.tokenize(code)
-                result = [(token[0], token[1]) for token in tokens]
-                error_tokens_text = "\n".join(analyzer.errors) if hasattr(analyzer, 'errors') else ""
-            except Exception as e:
-                error_tokens_text = f"An error occurred during lexical analysis: {e}"
+        if action == "Save":
+            # Save the code to a local file
+            name = simpledialog.askstring("Save file name needed", "Input name for the file!")
+            file_path = f"saved/{name}.txt"
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(code)
+            saved = f'File saved as [{name}] at [saved] directory!'
+            if not code:
+                saved = f'Error in saving file[{name}] at [saved] directory!'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                time_execution = time.time() - start_time
+                return jsonify({
+                    'result': result,
+                    'error_tokens_text': '',
+                    'error_syntax_text': '',
+                    'error_semantic_text': '',
+                    'output_text': output_text,
+                    'active_tab': active_tab,
+                    'time_execution': time_execution,
+                    'saved': saved
+                })
 
-        # Syntax Analysis
-        if (action == "Syntax" or action == "Semantic" or action == "Run") and code.strip():
-            try:
-                if not error_tokens_text:
-                    parser = LL1Parser(cfg, parse_table, follow_set)
-                    is_valid, syntax_errors = parser.parse(tokens)
-                    error_syntax_text = "\n".join(syntax_errors)
-            except Exception as e:
-                error_syntax_text = f"An error occurred during syntax analysis: {e}"
-
-        #Semantic Analysis
-        if (action == "Semantic" or action == "Run") and code.strip():
-            if not error_tokens_text and not error_syntax_text:
+        else:
+            # Lexical Analysis
+            if code.strip():
+                analyzer = LexicalAnalyzer()
                 try:
-                    analyzer = SemanticAnalyzer()
-                    semantic_errors_exceptions = analyzer.analyze(parser.parse_tree)
-                    semantic_errors = [str(error) for error in semantic_errors_exceptions]
-                    error_semantic_text = "\n".join(semantic_errors)
+                    tokens = analyzer.tokenize(code)
+                    result = [(token[0], token[1]) for token in tokens]
+                    error_tokens_text = "\n".join(analyzer.errors) if hasattr(analyzer, 'errors') else ""
                 except Exception as e:
-                    error_semantic_text = f"An error occurred during semantic analysis: {e}"
+                    error_tokens_text = f"An error occurred during lexical analysis: {e}"
 
-        # Run Program Action
-        if action == "Run":
-            if not code.strip():  # Check if code is empty or just whitespace
-                # Keep the default "No output generated yet" message by not changing output_text
-                pass  # Don't modify output_text when code is empty
-            elif not error_tokens_text and not error_syntax_text and not error_semantic_text:
-                # Use the existing analyzer instance that was created during semantic analysis
-                if 'analyzer' in locals() and 'parser' in locals():
-                    #semantic_errors_exceptions = analyzer.analyze(parser.parse_tree)
+            # Syntax Analysis
+            if (action == "Syntax" or action == "Semantic" or action == "Run") and code.strip():
+                try:
+                    if not error_tokens_text:
+                        parser = LL1Parser(cfg, parse_table, follow_set)
+                        is_valid, syntax_errors = parser.parse(tokens)
+                        error_syntax_text = "\n".join(syntax_errors)
+                except Exception as e:
+                    error_syntax_text = f"An error occurred during syntax analysis: {e}"
 
-                    if not semantic_errors_exceptions:  # Only proceed if no semantic errors
-                        output_text = process_output(analyzer.get_output())
+            #Semantic Analysis
+            if (action == "Semantic" or action == "Run") and code.strip():
+                if not error_tokens_text and not error_syntax_text:
+                    try:
+                        analyzer = SemanticAnalyzer()
+                        semantic_errors_exceptions = analyzer.analyze(parser.parse_tree)
+                        semantic_errors = [str(error) for error in semantic_errors_exceptions]
+                        error_semantic_text = "\n".join(semantic_errors)
+
+                    except Exception as e:
+                        error_semantic_text = f"An error occurred during semantic analysis: {e}"
+
+            # Run Program Action
+            if action == "Run":
+                if not code.strip():  # Check if code is empty or just whitespace
+                    # Keep the default "No output generated yet" message by not changing output_text
+                    pass  # Don't modify output_text when code is empty
+                elif not error_tokens_text and not error_syntax_text and not error_semantic_text:
+                    # Use the existing analyzer instance that was created during semantic analysis
+                    if 'analyzer' in locals() and 'parser' in locals():
+                        #semantic_errors_exceptions = analyzer.analyze(parser.parse_tree)
+
+                        if not semantic_errors_exceptions:  # Only proceed if no semantic errors
+                            output_text = process_output(analyzer.get_output())
+                        else:
+                            output_text = "Cannot run program with errors."
                     else:
-                        output_text = "Cannot run program with errors."
+                        output_text = "Error: Program analysis not completed properly."
                 else:
-                    output_text = "Error: Program analysis not completed properly."
-            else:
-                output_text = "Cannot run program with errors."
-            
-            active_tab = "output"
+                    output_text = "Cannot run program with errors."
 
-        # Check if this is an AJAX request
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            time_execution = time.time() - start_time
-            return jsonify({
-                'result': result,
-                'error_tokens_text': error_tokens_text,
-                'error_syntax_text': error_syntax_text,
-                'error_semantic_text': error_semantic_text,
-                'output_text': output_text,
-                'active_tab': active_tab,
-                'time_execution': time_execution
-            })
+                active_tab = "output"
+
+            # Check if this is an AJAX request
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                time_execution = time.time() - start_time
+                return jsonify({
+                    'result': result,
+                    'error_tokens_text': error_tokens_text,
+                    'error_syntax_text': error_syntax_text,
+                    'error_semantic_text': error_semantic_text,
+                    'output_text': output_text,
+                    'active_tab': active_tab,
+                    'time_execution': time_execution,
+                    'saved': saved
+                })
 
     # For standard GET requests or non-AJAX POST requests
     return render_template(
@@ -165,9 +192,9 @@ def index():
         error_semantic_text=error_semantic_text,
         output_text=output_text,
         active_tab=active_tab,
-        time_execution=time_execution
+        time_execution=time_execution,
+        saved=saved
     )
-
 
 
 if __name__ == "__main__":

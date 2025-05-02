@@ -26,7 +26,8 @@
                         <textarea name="code" id="codeTextarea" placeholder="Enter your code here..." oninput="updateLineNumbers()" onscroll="syncScroll()">{{ code }}</textarea>
                     </div>
                     <div class="button-container">
-                        <button type="button" class="action-button" data-action="Run" id="runProgramButton">Run Program</button>
+                        <button type="button" class="action-button" onclick="click_run()" data-action="Run" id="runProgramButton">Run Program</button>
+                        <button type="button" class="action-button" onclick="click_save()" data-action="Save" id="saveProgramButton">Save Code</button>
                     </div>
                 </form>
             </div>
@@ -53,6 +54,10 @@
                             <span class="status-icon success">✓</span>
                             <span class="status-text">Success from Semantic</span>
                         </div>
+                        <div class="status-item -hidden" id="save-status">
+                            <span class="status-icon success">✓</span>
+                            <span class="status-text">No file saved yet <3</span>
+                        </div>
                     </div>
                     
                     <div class="error-details" id="error-details">
@@ -60,6 +65,7 @@
                         <div id="lexical-errors" class="success-message"></div>
                         <div id="syntax-errors" class="success-message"></div>
                         <div id="semantic-errors" class="success-message"></div>
+                        <div id="save-errors" class="success-message"></div>
                     </div>
                 </div>
     
@@ -111,6 +117,13 @@
 
     <script>
         // Line number functions
+        let is_save = false;
+        function click_save(){
+            is_save = true;
+        }
+        function click_run(){
+            is_save = false;
+        }
         function updateLineNumbers() {
             const textarea = document.getElementById('codeTextarea');
             const lineNumbers = document.getElementById('lineNumbers');
@@ -175,7 +188,6 @@
         // Update error displays and status icons
         function updateErrorDisplay(elementId, errorText, isError) {
             const element = document.getElementById(elementId);
-            
             if (isError) {
                 element.className = 'error-message';
                 element.textContent = errorText;
@@ -201,6 +213,12 @@
                 // Update status icon
                 const statusId = elementId.replace('-errors', '-status');
                 const statusElement = document.getElementById(statusId);
+                if (elementId == 'save-errors')
+                    if (is_save )
+                        statusElement.classList.remove("-hidden");
+                    else
+                        statusElement.classList.add("-hidden");
+
                 if (statusElement) {
                     const iconElement = statusElement.querySelector('.status-icon');
                     const textElement = statusElement.querySelector('.status-text');
@@ -208,6 +226,16 @@
                     iconElement.className = 'status-icon success';
                     iconElement.textContent = '✓';
                     textElement.textContent = 'Success from ' + elementId.split('-')[0].charAt(0).toUpperCase() + elementId.split('-')[0].slice(1);
+                    if (elementId === 'save-errors' && !statusElement.classList.contains("-hidden")){
+                        if (errorText.includes("Error")){
+                            iconElement.className = 'status-icon error';
+                            iconElement.textContent = '✗';
+                        } else {
+                            iconElement.className = 'status-icon success';
+                            iconElement.textContent = '✓';
+                        }
+                        textElement.textContent = errorText;
+                    }
                 }
             }
             
@@ -251,7 +279,7 @@
                     
                     // Get the action from button data attribute
                     const action = this.getAttribute('data-action');
-                    
+                    console.log(action);
                     // Create form data
                     const formData = new FormData(form);
                     formData.append('action', action);
@@ -268,12 +296,14 @@
                     .then(data => {
                         // Update result table
                         updateResultTable(data.result);
-                        
+
+
                         // Update error displays
                         updateErrorDisplay('lexical-errors', data.error_tokens_text, !!data.error_tokens_text);
                         updateErrorDisplay('syntax-errors', data.error_syntax_text, !!data.error_syntax_text);
                         updateErrorDisplay('semantic-errors', data.error_semantic_text, !!data.error_semantic_text);
-                        
+                        updateErrorDisplay('save-errors', data.saved, !!'');
+
                         // Update output content
                         const outputElement = document.getElementById('output-content');
                         const statsElement = document.getElementById('stats');
