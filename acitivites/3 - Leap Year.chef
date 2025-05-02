@@ -1,0 +1,22 @@
+dinein
+chef pinch dish() {
+    pinch year;
+    serve("Enter a year: ");
+    make(year);
+    
+    taste (year <= 0) {
+        serve("Invalid input! Please enter a positive year.");
+    }
+    elif (year % 4 == 0 && year % 100 != 0) {
+        serve("Leap Year");
+    } 
+    elif (year % 400 == 0) {
+        serve("Leap Year");
+    } 
+    mix {
+        serve("Not a Leap Year\n");
+    }
+    
+    spit 0;
+}
+takeout

@@ -1,0 +1,41 @@
+dinein
+chef pinch dish(){
+    pinch num1, num2;
+    pinch a, b, temp, gcd;
+    
+    serve("Enter two integers: ");
+    make(num1);
+    make(num2);
+    
+    taste (num1 < 0 ?? num2 < 0) {
+        serve("Error: Please enter only non-negative integers.");
+    }
+    elif (num1 == 0 && num2 == 0) {
+        serve("Error: GCD is undefined when both numbers are zero.");
+    }
+    mix {
+        taste (num1 == 0) {
+            gcd = num2;
+        }
+        elif (num2 == 0) {
+            gcd = num1;
+        }
+        mix {
+            a = num1;
+            b = num2;
+            
+            simmer (b != 0) {
+                temp = b;
+                b = a % b;
+                a = temp;
+            }
+            
+            gcd = a;
+        }
+        
+        serve("GCD of " + num1 + " and " + num2 + " is " + gcd);
+    }
+    
+    spit 0;
+}
+takeout

@@ -73,6 +73,29 @@ def analyze(code):
     
     return tokens, syntax_errors, semantic_errors, output
 
+@app.route("/download_file", methods=["POST"])
+def download_file():
+    """Handle file download requests."""
+    if request.method == "POST":
+        code_content = request.form.get("code", "")
+        filename = request.form.get("filename", "chefscript_code.chef")
+        
+        # Create a temporary file
+        fd, path = tempfile.mkstemp(suffix=".chef")
+        try:
+            with os.fdopen(fd, 'w') as tmp:
+                tmp.write(code_content)
+            
+            # Send the file to the client
+            return send_file(path, as_attachment=True, 
+                        download_name=filename,
+                        mimetype="text/plain")
+        finally:
+            # Clean up the temporary file
+            os.remove(path)
+    
+    return "Error processing download request", 400
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     result = []

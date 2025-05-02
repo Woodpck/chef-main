@@ -1,0 +1,23 @@
+dinein
+chef pinch dish(){
+    pasta string;
+    bool isPalindrome = yum;
+    make(string);
+    left = 0;
+    right = len(string) - 1;
+    
+    simmer (left < right){
+        taste(string[left] != string[right] ){
+            isPalindrome = bleh;
+        }
+        left++;
+        right--;
+    }
+    taste(isPalindrome){
+        serve(string + " = Palindrome");
+    } mix {
+        serve(string + "= Not a Palindrome");
+    }
+    spit 0;
+}
+takeout

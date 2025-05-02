@@ -1,0 +1,26 @@
+dinein
+
+chef pinch dish() {
+    pinch a;
+    pinch b;
+    pinch lcm;
+    pinch gcd = 1;
+    pinch i;
+
+    serve ("Enter first number: ");
+    make (a);
+    serve ("Enter second number: ");
+    make (b);
+
+    for (i = 1; i <= a && i <= b; i++) {
+        taste (a % i == 0 && b % i == 0){
+            gcd = i;
+        }
+    }
+
+    lcm = (a * b) / gcd;
+
+    serve ("LCM = "+ lcm);
+    spit 0;
+}
+takeout

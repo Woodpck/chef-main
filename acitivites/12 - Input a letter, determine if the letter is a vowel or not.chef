@@ -1,0 +1,32 @@
+dinein
+chef pinch dish(){
+    pasta letter;
+    pinch isValid = 1;
+    
+    serve("Enter a letter: ");
+    make(letter);
+    
+    taste ( letter[0] == "-" ?? letter != letter[0] ) {
+        serve("Error: Please enter a single letter only, not strings or special characters.");
+        isValid = 0;
+    }
+    
+    taste (isValid == 1) {
+        taste (letter == "A" ?? letter == "E" ?? letter == "I" ?? letter == "O" ?? letter == "U" ?? 
+               letter == "a" ?? letter == "e" ?? letter == "i" ?? letter == "o" ?? letter == "u") {
+            serve("Letter " + letter + " is a vowel");
+        } 
+        elif (letter == "Y" ?? letter == "y") {
+            serve("Letter " + letter + " is sometimes a vowel, sometimes a consonant");
+        }
+        elif (letter == "W" ?? letter == "w") {
+            serve("Letter " + letter + " is sometimes a vowel, sometimes a consonant");
+        }
+        mix {
+            serve("Letter " + letter + " is not a vowel");
+        }
+    }
+    
+    spit 0;
+}
+takeout

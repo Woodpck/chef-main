@@ -1,0 +1,31 @@
+dinein
+chef pinch dish() {
+    pinch decimal;
+    pinch binary;
+    pinch quotient;
+    pinch result = 0;
+    pinch position = 1;
+    
+    serve("Enter a decimal number: ");
+    make(decimal);
+
+    taste (decimal < 0) {
+        serve("Invalid input! Please enter a non-negative number.");
+    }
+    elif (decimal == 0) {
+        serve("0 in binary is: 0");
+    }
+    mix {
+        binary = decimal;
+        simmer (decimal > 0) {
+            quotient = decimal % 2;
+            result = result + (quotient * position);
+            position = position * 10;
+            decimal = decimal / 2;
+        }
+        serve(binary + " in binary is: " + result);
+    }
+    spit 0;
+}
+
+takeout

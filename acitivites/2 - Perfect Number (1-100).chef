@@ -1,0 +1,20 @@
+dinein
+chef pinch dish() {
+    pinch sum;
+    pinch i;
+    pinch j;
+    serve ("Perfect numbers from 1 to 100:");
+    for (i = 1; i <= 100; i++) {
+        sum = 0;
+        for (j = 1; j < i; j++) {
+            taste (i % j == 0){
+                sum += j;
+            }
+        }
+        taste (sum == i){
+            serve (i);
+        }
+    }
+    spit 0;
+}
+takeout

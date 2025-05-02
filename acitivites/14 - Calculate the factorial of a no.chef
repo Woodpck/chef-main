@@ -1,0 +1,19 @@
+dinein
+chef pinch dish(){
+    pinch num;
+    pinch fac = 1;
+    
+    serve("Enter a number: ");
+    make(num);
+    
+    taste (num < 0) {
+        serve("Invalid input! Factorial is not defined for negative numbers.");
+    }
+    mix {
+        simmer(num > 1){
+            fac = fac * num;
+            num = num - 1;
+        }
+        serve("The factorial number is " + fac);
+    }
+    spit 0;

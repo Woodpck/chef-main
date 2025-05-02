@@ -1,0 +1,16 @@
+dinein
+
+chef pinch dish() {
+    pinch num;
+    serve ("Enter a number: ");
+    make (num);
+    taste (num > 0){
+        serve ("Positive");
+    } elif (num < 0){
+        serve ("Negative");
+    } mix {
+        serve ("Zero");
+    }
+    spit 0;
+}
+takeout

@@ -1,0 +1,41 @@
+dinein
+chef pinch dish() {
+    pinch deci = 0;
+    pinch base = 1;
+    pinch binary;
+    pinch temp;
+    pinch isValid = 1;  
+    pinch digit;        
+    pinch lastDigit;   
+    
+    serve("Enter a binary number (containing only 0s and 1s): ");
+    make(binary);
+
+    taste (binary < 0) {
+        serve("Error: Negative numbers are not valid binary inputs!");
+    }
+    mix {
+        temp = binary;
+        simmer (temp > 0) {
+            digit = temp % 10;
+            taste (digit != 0 && digit != 1) {
+                isValid = 0; 
+            }
+            temp = temp / 10;
+        }
+         taste (isValid == 0) {
+            serve("Error: Input must contain only 0s and 1s!");
+        }
+        mix {
+            simmer (binary > 0) {
+                lastDigit = binary % 10;
+                deci = deci + lastDigit * base;
+                base = base * 2;
+                binary = binary / 10;
+            }
+            serve("Decimal: " + deci);
+        }
+    } 
+    spit 0;
+}
+takeout

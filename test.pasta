@@ -1,0 +1,82 @@
+dinein;
+
+hungry leftTriangle() {
+    serve("*");
+    serve("**");
+    serve("***");
+    serve("****");
+    serve("*****");
+    serve("******");
+    serve("*******");
+}
+
+hungry rightTriangle() {
+    serve("        *");
+    serve("       **");
+    serve("      ***");
+    serve("     ****");
+    serve("    *****");
+    serve("   ******");
+    serve("  *******");
+}
+
+hungry triangle() {
+    serve("        *");
+    serve("       ***");
+    serve("      *****");
+    serve("     *******");
+    serve("    *********");
+    serve("   ***********");
+    serve("  *************");
+}
+
+hungry square() {
+    serve(" ***************");
+    serve(" ***************");
+    serve(" ***************");
+    serve(" ***************");
+    serve(" ***************");
+    serve(" ***************");
+    serve(" ***************");
+}
+
+hungry rectangle() {
+    serve(" ******************************");
+    serve(" ******************************");
+    serve(" ******************************");
+    serve(" ******************************");
+    serve(" ******************************");
+    serve(" ******************************");
+}
+
+chef pinch dish() {
+    pinch choice;
+    
+    serve("Choose a number 1-5 to display shape (1 - Left Trangle, 2 - Right Triangle, 3 - Triangle, 4 - Sqaure, 5 - Rectangle)");
+    make choice;
+    
+    flip(choice) {
+        case 1:
+            leftTriangle();
+            chop;
+        case 2:
+            rightTriangle();
+            chop;
+        case 3:
+            triangle();
+            chop;
+        case 4:
+            square();
+            chop;
+        case 5:
+            rectangle();
+            chop;
+        default:
+            serve("Invalid choice. Please select between 1 to 5.\n");
+            chop;
+    }
+    
+    spit 0;
+}
+
+takeout; 

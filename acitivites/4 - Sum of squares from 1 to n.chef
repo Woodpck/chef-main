@@ -1,0 +1,20 @@
+dinein
+chef pinch dish() {
+    pinch num = 0, sum = 0;
+    pinch i;
+    
+    make (num);
+    
+    taste (num < 0) {
+        serve ("Invalid input! Number cannot be negative.");
+    }
+    mix {
+        for (i = 1; i <= num; i++){
+            sum += i * i;
+        }
+        serve ("Sum of squares = " + sum);
+    }
+    
+    spit 0;
+}
+takeout

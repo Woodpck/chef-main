@@ -20,6 +20,22 @@
         <!-- Top section with input and errors side by side -->
         <div class="top-section">
             <div class="column input-area">
+                <div class="file-operations">
+                    <div class="file-buttons-group">
+                        <button type="button" class="file-button" id="newFileButton">
+                            <span class="file-icon">📄</span> New
+                        </button>
+                        <button type="button" class="file-button" id="openFileButton">
+                            <span class="file-icon">📂</span> Open
+                        </button>
+                        <button type="button" class="file-button" id="saveFileButton">
+                            <span class="file-icon">💾</span> Save
+                        </button>
+                        <input type="file" id="fileInput" style="display: none;">
+                    </div>
+                    <div class="file-name-display" id="currentFileName">untitled.chef</div>
+                </div>
+                
                 <form id="codeForm" method="POST">
                     <div class="textarea-wrapper">
                         <div class="line-numbers" id="lineNumbers"></div>
@@ -30,6 +46,7 @@
                     </div>
                 </form>
             </div>
+            
     
             <div class="column error-sections">
                 <!-- Tab Navigation -->
@@ -142,6 +159,113 @@
             // Activate the clicked tab button
             document.querySelector(`.tab-button[onclick="showTab('${tabName}')"]`).classList.add('active');
         }
+
+        // Current file name tracking
+        let currentFileName = 'untitled.chef';
+        let hasUnsavedChanges = false;
+
+        // File operation functions
+        function newFile() {
+            if (hasUnsavedChanges) {
+                if (!confirm('You have unsaved changes. Are you sure you want to create a new file?')) {
+                    return;
+                }
+            }
+            
+            document.getElementById('codeTextarea').value = '';
+            currentFileName = 'untitled.chef';
+            hasUnsavedChanges = false;
+            updateUnsavedIndicator(false);
+            updateLineNumbers();
+            
+            // Show notification
+            showNotification('Created new file');
+        }
+
+        function openFile() {
+            if (hasUnsavedChanges) {
+                if (!confirm('You have unsaved changes. Are you sure you want to open another file?')) {
+                    return;
+                }
+            }
+            
+            document.getElementById('fileInput').click();
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('codeTextarea').value = e.target.result;
+                    currentFileName = file.name;
+                    hasUnsavedChanges = false;
+                    updateUnsavedIndicator(false);
+                    updateLineNumbers();
+                    
+                    // Show notification
+                    showNotification(`Opened file: ${file.name}`);
+                };
+                reader.readAsText(file);
+            }
+            
+            // Reset the file input so the same file can be loaded again
+            document.getElementById('fileInput').value = '';
+        }
+
+        function saveFile() {
+            const codeContent = document.getElementById('codeTextarea').value;
+            
+            // Create a download link
+            const blob = new Blob([codeContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentFileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            URL.revokeObjectURL(url);
+            hasUnsavedChanges = false;
+            updateUnsavedIndicator(false);
+            
+            // Show notification
+            showNotification(`Saved file: ${currentFileName}`);
+        }
+
+        // Create a notification system
+        function showNotification(message) {
+            // Check if notification container exists, create if not
+            let notificationContainer = document.querySelector('.notification-container');
+            if (!notificationContainer) {
+                notificationContainer = document.createElement('div');
+                notificationContainer.className = 'notification-container';
+                document.body.appendChild(notificationContainer);
+            }
+            
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            
+            // Add to container
+            notificationContainer.appendChild(notification);
+            
+            // Animation
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+            
+            // Remove after delay
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    notificationContainer.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
         
         // Update result table
         function updateResultTable(results) {
@@ -229,7 +353,154 @@
                 document.getElementById('error-details').style.display = 'none';
             }
         }
-        
+
+        function makeFilenameEditable() {
+            const fileNameDisplay = document.getElementById('currentFileName');
+            
+            if (!fileNameDisplay) {
+                console.error("Could not find filename element");
+                return;
+            }
+            
+            // Force element to be clickable
+            fileNameDisplay.setAttribute('contenteditable', 'true');
+            fileNameDisplay.style.cursor = 'text';
+            
+            // Make the filename clickable to edit - use mousedown instead of click
+            fileNameDisplay.addEventListener('mousedown', function(e) {
+                // Only allow editing if not already in edit mode
+                if (!this.contentEditable || this.contentEditable === 'false') {
+                    e.preventDefault();
+                    
+                    // Make the element editable
+                    this.contentEditable = 'true';
+                    
+                    // Select all text in the element
+                    const selection = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents(this);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    
+                    // Add a class to show it's being edited
+                    this.classList.add('editing');
+                    
+                    // Capture the original text in case the user cancels
+                    this.dataset.originalText = this.textContent;
+                    
+                    // Focus the element
+                    this.focus();
+                    
+                    showNotification("Editing filename - press Enter to save");
+                }
+            });
+    
+            // Handle saving the edited filename when user presses Enter
+            fileNameDisplay.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.contentEditable = false;
+                    this.classList.remove('editing');
+                    
+                    // Ensure filename has .chef extension
+                    let newFilename = this.textContent.trim();
+                    if (!newFilename.endsWith('.chef')) {
+                        newFilename += '.chef';
+                    }
+                    
+                    // Update the current filename
+                    currentFileName = newFilename;
+                    this.textContent = newFilename;
+                    
+                    // If the file has unsaved changes, show the indicator
+                    if (hasUnsavedChanges) {
+                        updateUnsavedIndicator(true);
+                    }
+                    
+                    // Show notification
+                    showNotification(`Filename changed to: ${newFilename}`);
+                }
+                
+                // Handle canceling edit with Escape key
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this.contentEditable = false;
+                    this.classList.remove('editing');
+                    this.textContent = this.dataset.originalText;
+                }
+            });
+            
+            // Handle saving the edited filename when clicking outside
+            fileNameDisplay.addEventListener('blur', function() {
+                if (this.contentEditable === 'true') {
+                    this.contentEditable = false;
+                    this.classList.remove('editing');
+                    
+                    // Ensure filename has .chef extension
+                    let newFilename = this.textContent.trim();
+                    if (newFilename && newFilename !== this.dataset.originalText) {
+                        if (!newFilename.endsWith('.chef')) {
+                            newFilename += '.chef';
+                        }
+                        
+                        // Update the current filename
+                        currentFileName = newFilename;
+                        this.textContent = newFilename;
+                        
+                        // If the file has unsaved changes, show the indicator
+                        if (hasUnsavedChanges) {
+                            updateUnsavedIndicator(true);
+                        }
+                        
+                        // Show notification
+                        showNotification(`Filename changed to: ${newFilename}`);
+                    } else {
+                        // Restore original text if empty or unchanged
+                        this.textContent = this.dataset.originalText;
+                    }
+                }
+            });
+        }
+
+        function setupChangeTracking() {
+            const textarea = document.getElementById('codeTextarea');
+            textarea.addEventListener('input', function() {
+                hasUnsavedChanges = true;
+                // Add this line to update the visual indicator
+                updateUnsavedIndicator(true);
+            });
+            
+            // Warn before closing the page if there are unsaved changes
+            window.addEventListener('beforeunload', function(e) {
+                if (hasUnsavedChanges) {
+                    e.preventDefault();
+                    e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+                    return e.returnValue;
+                }
+            });
+        }
+
+        function updateUnsavedIndicator(isUnsaved) {
+            const fileNameDisplay = document.getElementById('currentFileName');
+            if (fileNameDisplay) {
+                fileNameDisplay.textContent = isUnsaved ? `${currentFileName} *` : currentFileName;
+                
+                if (isUnsaved) {
+                    fileNameDisplay.classList.add('unsaved');
+                } else {
+                    fileNameDisplay.classList.remove('unsaved');
+                }
+            }            
+            const saveButton = document.getElementById('saveFileButton');
+            if (saveButton) {
+                if (isUnsaved) {
+                    saveButton.classList.add('has-changes');
+                } else {
+                    saveButton.classList.remove('has-changes');
+                }
+            }
+        }
+
         // Document ready
         document.addEventListener("DOMContentLoaded", function() {
             updateLineNumbers();
@@ -239,6 +510,15 @@
             const form = document.getElementById('codeForm');
             const actionButtons = document.querySelectorAll('.action-button');
             const loadingOverlay = document.getElementById('loading-overlay');
+            
+            // Set up file operation buttons
+            document.getElementById('newFileButton').addEventListener('click', newFile);
+            document.getElementById('openFileButton').addEventListener('click', openFile);
+            document.getElementById('saveFileButton').addEventListener('click', saveFile);
+            document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+            
+            // Set up change tracking
+            setupChangeTracking();
             
             // Add click event for all action buttons
             actionButtons.forEach(button => {
@@ -255,7 +535,6 @@
                     // Create form data
                     const formData = new FormData(form);
                     formData.append('action', action);
-                    
                     // Perform AJAX request
                     fetch(window.location.href, {
                         method: 'POST',
@@ -288,7 +567,6 @@
                             outputElement.textContent = 'No output generated yet';
                         }
                         
-                        // Switch to active tab if provided
                         if (data.active_tab) {
                             showTab(data.active_tab);
                         }
@@ -306,7 +584,7 @@
                     });
                 });
             });
-            
+
             // Tab key handler
             textarea.addEventListener("keydown", function (event) {
                 if (event.key === "Tab") {
@@ -317,7 +595,6 @@
                     textarea.value = textarea.value.substring(0, start) + spaces + textarea.value.substring(end);
                     textarea.selectionStart = textarea.selectionEnd = start + spaces.length;
                     
-                    // Update line numbers after tab insertion
                     updateLineNumbers();
                 }
                 
@@ -333,33 +610,106 @@
                         closingChar = ")";
                     } else if (event.key === "{") {
                         closingChar = "}";
-                    } else { // For quotation marks (both single and double)
-                        closingChar = event.key; // Same character for opening and closing
+                    } else { 
+                        closingChar = event.key; 
                     }
-                    
-                    // Insert opening char, selected text, and closing char
+
                     const selectedText = textarea.value.substring(start, end);
                     textarea.value = textarea.value.substring(0, start) + 
                                     event.key + selectedText + closingChar + 
                                     textarea.value.substring(end);
                     
-                    // Position cursor appropriately
                     if (start === end) {
-                        // If no text is selected, place cursor between the characters
                         textarea.selectionStart = textarea.selectionEnd = start + 1;
                     } else {
-                        // If text is selected, place cursor after the closing character
                         textarea.selectionStart = textarea.selectionEnd = end + 2;
                     }
-                    
-                    // Update line numbers after inserting
+
                     updateLineNumbers();
                 }
             });
             
-            // Initialize line numbers on load
+            // Initialize filename editor
+            makeFilenameEditable();
             updateLineNumbers();
         });
+    </script>
+    <script>
+    function createMatrixRainEffect() {
+        let matrixContainer = document.querySelector('.matrix-effect');
+        if (!matrixContainer) {
+            matrixContainer = document.createElement('div');
+            matrixContainer.className = 'matrix-effect';
+            document.body.appendChild(matrixContainer);
+        } else {
+            matrixContainer.innerHTML = '';
+        }
+        
+        const columnCount = Math.floor(window.innerWidth / 20);
+        
+        for (let i = 0; i < columnCount; i++) {
+            createMatrixColumn(matrixContainer, i * 20);
+        }
+        
+        window.addEventListener('resize', () => {
+            matrixContainer.innerHTML = '';
+            
+            const newColumnCount = Math.floor(window.innerWidth / 20);
+            
+            for (let i = 0; i < newColumnCount; i++) {
+                createMatrixColumn(matrixContainer, i * 20);
+            }
+        });
+    }
+ 
+    function createMatrixColumn(container, posX) {
+        const column = document.createElement('div');
+        column.className = 'matrix-column';
+        column.style.left = `${posX}px`;
+        
+        const speed = Math.random() * 2 + 1; 
+        const delay = Math.random() * 10000;
+        
+        const characters = "01";
+        const columnHeight = Math.floor(window.innerHeight / 20);
+        
+        let columnContent = '';
+        for (let i = 0; i < columnHeight; i++) {
+            const char = characters.charAt(Math.floor(Math.random() * characters.length));
+            columnContent += `<span style="opacity: ${1 - (i / columnHeight)}">${char}</span><br>`;
+        }
+        
+        column.innerHTML = columnContent;
+        container.appendChild(column);
+        
+        setTimeout(() => {
+            let posY = -100;
+            
+            function moveColumn() {
+                posY += speed;
+                
+                if (posY > window.innerHeight + 100) {
+                    posY = -100;
+                    let newContent = '';
+                    for (let i = 0; i < columnHeight; i++) {
+                        const char = characters.charAt(Math.floor(Math.random() * characters.length));
+                        newContent += `<span style="opacity: ${1 - (i / columnHeight)}">${char}</span><br>`;
+                    }
+                    column.innerHTML = newContent;
+                }
+                
+                column.style.transform = `translateY(${posY}px)`;
+                requestAnimationFrame(moveColumn);
+            }
+            
+            moveColumn();
+        }, delay);
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        createMatrixRainEffect();
+        updateLineNumbers();
+    });
     </script>
 </body>
 </html>

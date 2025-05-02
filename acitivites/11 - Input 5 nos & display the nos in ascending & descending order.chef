@@ -1,0 +1,35 @@
+dinein
+chef pinch dish(){
+    pinch a, b, c, d, e, temp;
+    make(a);
+    make(b);
+    make(c);
+    make(d);
+    make(e);
+
+
+    serve ("Enter 5 numbers:\n");
+
+    taste (a > b) { temp = a; a = b; b = temp; }
+    taste (a > c) { temp = a; a = c; c = temp; }
+    taste (a > d) { temp = a; a = d; d = temp; }
+    taste (a > e) { temp = a; a = e; e = temp; }
+
+    taste (b > c) { temp = b; b = c; c = temp; }
+    taste (b > d) { temp = b; b = d; d = temp; }
+    taste (b > e) { temp = b; b = e; e = temp; }
+
+    taste (c > d) { temp = c; c = d; d = temp; }
+    taste (c > e) { temp = c; c = e; e = temp; }
+
+    taste (d > e) { temp = d; d = e; e = temp; }
+
+    //Ascending Order
+    serve ("Ascending Order: " + a + " " + b + " " + c + " " + d + " " + e + "\n");
+    //Descending Order
+    serve ("Descending Order: " + e + " " + d + " " + c + " " + b + " " + a + "\n");
+
+    spit 0;
+}
+
+takeout

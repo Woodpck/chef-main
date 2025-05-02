@@ -1,0 +1,23 @@
+dinein
+chef pinch dish() {
+    pinch n, a = 0, b = 1, c;
+   
+    serve ("Enter number of Fibonacci terms: ");
+    make (n);
+    
+    taste (n < 1){
+        serve ("Positive number lang ngani.\n");
+
+} //saving a file
+
+    serve ("Fibonacci Sequence: ");
+    for (pinch i = 0; i < n; i++) {
+        serve (a);
+        c = a + b;
+        a = b;
+        b = c;
+    }
+    serve ("\n");
+    spit 0;
+}
+takeout

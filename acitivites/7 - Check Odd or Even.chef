@@ -1,0 +1,15 @@
+dinein
+
+chef pinch dish() {
+    pinch num;
+    serve ("Enter a number: ");
+    make (num);
+    taste (num % 2 == 0){
+        serve ("Even");
+    
+    } mix {
+        serve ("Odd");
+    }
+    spit 0;
+}
+takeout
