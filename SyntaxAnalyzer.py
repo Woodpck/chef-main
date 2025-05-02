@@ -26,12 +26,6 @@ cfg = {
  	"<data_type2>": [["pinch"],
                  	["skim"],
                  	["pasta"]],
-  
-	"<dec_or_init>": [["=", "<literals>", "<next_dec_or_init>"],
-                   	["<next_dec_or_init>"]],
- 
-	"<next_dec_or_init>": [[",", "id", "<dec_or_init>"],
-                        ["λ"]],
  
 	"<literals>": [["pinchliterals"],
                 	["skimliterals"],
@@ -54,9 +48,9 @@ cfg = {
     "<elementtail>": [[",", "<literals>", "<elementtail>"],
                 ["λ"]],
     
-	"<function>": [["full", "<data_type>", "id", "(", "<parameters>", ")", "{", "<local_dec>", "<statement_block>", "<return_statement>", ";", "}", "<function>"],
-						["hungry", "id", "(", "<parameters>", ")", "{", "<local_dec>", "<statement_block>", "}", "<function>"],
-                        ["λ"]],
+	"<function>": [ ["full", "<data_type>", "id", "(", "<parameters>", ")", "{", "<local_dec>", "<statement_block>", "<return_statement>", ";", "}", "<function>"],
+				    ["hungry", "id", "(", "<parameters>", ")", "{", "<local_dec>", "<statement_block>", "}", "<function>"],
+                    ["λ"]],
  
 	"<parameters>": [["<data_type>", "id", "<param_tail>"],
 					["λ"]],
@@ -81,7 +75,7 @@ cfg = {
                     ["make", "(", "id", ")", ";"]],
     
     "<statement_id_tail>": [["(", "<argument_list>", ")", ";"],
-                            ["<assignment_operator>", "<expression>", ";"],
+                            ["<assignment_operator>", "<condition>", ";"],
                             ["[", "<recipe_index>", "]", "<assignment_operator>", "<arithmetic_exp>", ";"],
                             ["<unary_op>", ";"]],
     
@@ -115,23 +109,29 @@ cfg = {
                             ["&&"],
 				            ["??"]],
     
-    "<arithmetic_exp>": [["<arithmetic_operand>", "<arithmetic_tail>"]],
-    
-    "<arithmetic_tail>": [["<arithmetic_operator>", "<arithmetic_operand>", "<arithmetic_tail>"],
-                          ["λ"]],
-    
-    "<arithmetic_operand>": [["<value2>"],
-                             ["(", "<arithmetic_exp>", ")"]],
-    
-    "<arithmetic_operator>": [["+"],
-                            ["-"],
-                            ["*"],
-                            ["/"],
-                            ["%"]],
-    
+    "<arithmetic_exp>": [["<term>", "<arithmetic_exp_tail>"]],
+
+    "<arithmetic_exp_tail>": [["<additive_operator>", "<term>", "<arithmetic_exp_tail>"],
+                              ["λ"]],
+
+    "<term>": [["<factor>", "<term_tail>"]],
+
+    "<term_tail>": [["<multiplicative_operator>", "<factor>", "<term_tail>"],
+                    ["λ"]],
+
+    "<factor>": [["<value2>"],
+                 ["(", "<arithmetic_exp>", ")"]],
+
+    "<additive_operator>": [["+"],
+                            ["-"]],
+
+    "<multiplicative_operator>": [["*"],
+                                  ["/"],
+                                  ["%"]],
+
     "<value>": [["<literals>"],
                 ["id", "<value_id_tail>"]],
-    
+
     "<value_id_tail>": [["(", "<argument_list>", ")"],
                 ["[", "<recipe_index>", "]"],
                 ["λ"]],
@@ -153,39 +153,54 @@ cfg = {
                    ["--"]],
     
     "<conditional_statement>": [["taste", "(", "<condition>", ")", "{", "<statement_block>", "}", "<conditional_tail>"],
-                                ["flip", "(", "id", ")", "{", "case", "<literals4>", ":", "<statement_block>", "chop", ";", "<case_tail>", "<default_block>", "}"]],
+                                ["flip", "(", "id", ")", "{",
+                                 "case", "<literals4>", ":", "<statement_block>", "chop", ";",
+                                 "<case_tail>", "}"]],
     
     "<conditional_tail>": [["elif", "(", "<condition>", ")", "{", "<statement_block>", "}", "<conditional_tail>"],
                             ["mix", "{", "<statement_block>", "}"],
                             ["λ"]],
-    
-    "<condition>": [["<condition_operand>", "<condition_tail>"]],
-    
-    "<condition_tail>": [["<condition_operator>", "<condition_operand>", "<condition_tail>"],
+
+    "<condition>": [["<logical_or>"]],
+
+    "<logical_or>": [["<logical_and>", "<logical_or_tail>"]],
+
+    "<logical_or_tail>": [["??", "<logical_and>", "<logical_or_tail>"],
+                          ["λ"]],
+
+    "<logical_and>": [["<equality>", "<logical_and_tail>"]],
+
+    "<logical_and_tail>": [["&&", "<equality>", "<logical_and_tail>"],
+                           ["λ"]],
+
+    "<equality>": [["<relational>", "<equality_tail>"]],
+
+    "<equality_tail>": [["==", "<relational>"],
+                        ["!=", "<relational>"],
                         ["λ"]],
-    
-    "<condition_operand>": [["<value>"],
-                            ["(", "<condition>", ")"],
-                            ["!", "(", "<condition>", ")"],
-                            ["!!", "(", "<condition>", ")"]],
-    
-    "<condition_operator>": [["/"], # added operator
-                            ["%"],
-                            ["=="],
-                            ["!="],
-                            ["<"],
-                            [">"],
-                            ["<="],
-                            [">="],
-                            ["&&"],
-				            ["??"]],
-    
+
+    "<relational>": [["<primary>", "<relational_tail>"]],
+
+    "<relational_tail>": [["<", "<primary>", "<relational_tail>"],
+                          [">", "<primary>", "<relational_tail>"],
+                          ["<=", "<primary>", "<relational_tail>"],
+                          [">=", "<primary>", "<relational_tail>"],
+                          ["λ"]],
+
+    "<primary>": [["<arithmetic_exp>"],
+                  ["yum"],
+                  ["bleh"],
+                  ["!", "(", "<condition>", ")"],
+                  ["!!", "(", "<condition>", ")"]],
+
+
     "<case_tail>": [["case", "<literals4>", ":", "<statement_block>", "chop", ";", "<case_tail>"],
-                       ["λ"]],
+                    ["default", ":", "<statement_block>", "chop", ";"],
+                    ["λ"]],
     
     "<literals4>": [["pinchliterals"],
                     ["pastaliterals"]],
-    
+
     "<default_block>": [["default", ":", "<statement_block>", "chop", ";"],
                        ["λ"]],
     

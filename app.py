@@ -2,6 +2,12 @@ from flask import Flask, render_template, request, jsonify
 from LexicalAnalyzer import LexicalAnalyzer
 from SyntaxAnalyzer import SyntaxAnalyzer, LL1Parser, cfg, parse_table, follow_set
 from SemanticAnalyzer import SemanticAnalyzer
+import time
+import sys
+import os
+
+original_stdout = sys.stdout
+sys.stdout = open(os.devnull, 'w')
 
 app = Flask(__name__)
 
@@ -77,8 +83,10 @@ def index():
     tokens = []
     active_tab = "errors"
     output_text = ""  # For output tab
+    time_execution = 0
 
     if request.method == "POST":
+        start_time = time.time()
         code = normalize_newlines(request.form.get("code", ""))
         action = request.form.get("action")
 
@@ -102,7 +110,7 @@ def index():
             except Exception as e:
                 error_syntax_text = f"An error occurred during syntax analysis: {e}"
 
-        # Semantic Analysis
+        #Semantic Analysis
         if (action == "Semantic" or action == "Run") and code.strip():
             if not error_tokens_text and not error_syntax_text:
                 try:
@@ -121,7 +129,8 @@ def index():
             elif not error_tokens_text and not error_syntax_text and not error_semantic_text:
                 # Use the existing analyzer instance that was created during semantic analysis
                 if 'analyzer' in locals() and 'parser' in locals():
-                    semantic_errors_exceptions = analyzer.analyze(parser.parse_tree)
+                    #semantic_errors_exceptions = analyzer.analyze(parser.parse_tree)
+
                     if not semantic_errors_exceptions:  # Only proceed if no semantic errors
                         output_text = process_output(analyzer.get_output())
                     else:
@@ -135,13 +144,15 @@ def index():
 
         # Check if this is an AJAX request
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            time_execution = time.time() - start_time
             return jsonify({
                 'result': result,
                 'error_tokens_text': error_tokens_text,
                 'error_syntax_text': error_syntax_text,
                 'error_semantic_text': error_semantic_text,
                 'output_text': output_text,
-                'active_tab': active_tab
+                'active_tab': active_tab,
+                'time_execution': time_execution
             })
 
     # For standard GET requests or non-AJAX POST requests
@@ -154,7 +165,10 @@ def index():
         error_semantic_text=error_semantic_text,
         output_text=output_text,
         active_tab=active_tab,
+        time_execution=time_execution
     )
+
+
 
 if __name__ == "__main__":
     app.run(debug=True)
