@@ -441,8 +441,8 @@ tr:hover {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% { transform: rotate(0deg) translateZ(0); }
+    100% { transform: rotate(360deg) translateZ(0); }
 }
 
 #stats{
@@ -584,6 +584,8 @@ tr:hover {
     background-color: rgba(0, 0, 0, 0.9);
     overflow: hidden;
     pointer-events: none;
+    will-change: transform; /* Optimize matrix effect */
+    transform: translateZ(0); /* Force GPU acceleration */
 }
 
 .matrix-column {
@@ -596,9 +598,36 @@ tr:hover {
     text-align: center;
     user-select: none;
     pointer-events: none;
+    will-change: transform;
+    transform: translateZ(0); 
+    backface-visibility: hidden; 
 }
 
-/* Responsive adjustments */
+
+.error-details,
+.table-container,
+.output-block,
+.error-block {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg) translateZ(0); }
+    100% { transform: rotate(360deg) translateZ(0); }
+}
+
+
+button,
+.file-button,
+.tab-button,
+.notification {
+    backface-visibility: hidden;
+    transform: translateZ(0);
+}
+
+
 @media (max-width: 768px) {
     .file-operations {
         flex-direction: column;
