@@ -1,0 +1,22 @@
+dinein
+
+chef pinch dish() {
+    pasta name;
+    skim grade;
+
+    serve ("Enter student name: ");
+    make(name);
+    
+    serve("Enter grade: ");
+    make(grade);
+
+    taste (grade >= 75) {
+        serve("has PASSED.\n"+ name);
+    } mix {
+        serve("has FAILED.\n"+ name);
+    }
+
+    spit 0;
+}
+
+takeout

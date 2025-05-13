@@ -1,0 +1,59 @@
+dinein
+
+hungry factorial(pinch n) {
+    pinch result = 1;
+    for (pinch i = 1; i <= n; i++) {
+    result *= i;
+    }
+    serve("Factorial = " + result);
+}
+
+hungry fibonacci(pinch n) {
+    pinch a = 0, b = 1, next;
+    serve("Fibonacci: ");
+    for (pinch i = 0; i < n; i++) {
+        serve(a);
+        next = a + b;
+        a = b;
+        b = next;
+    }
+    serve("\n");
+}
+
+hungry primeCheck(pinch n) {
+    taste (n < 2) {
+        serve("Not Prime\n");
+    }
+
+    for (pinch i = 2; i * i <= n; i++) {
+        taste (n % i == 0) {
+            serve("Not Prime\n");
+        }
+    }
+    serve("Prime\n");
+}
+
+chef pinch dish() {
+    pinch choice, input;
+
+    serve("1. Factorial\n2. Fibonacci\n3. Prime Check\n");
+    serve("Enter your choice: ");
+    make(choice);
+    serve("Enter number: ");
+    make(input);
+
+    flip (choice) {
+        case 1: factorial(input);
+            chop;
+        case 2: fibonacci(input);
+            chop;
+        case 3: primeCheck(input);
+            chop;
+        default:
+        serve("Invalid choice\n");
+        chop;
+    }
+    spit 0;
+}
+
+takeout

@@ -1247,13 +1247,12 @@ class SemanticAnalyzer:
         # Process the initial value3
         if hasattr(arg_node, 'children') and arg_node.children:
             initial_node = arg_node.children[0]
-            #are you ing retarded????? why would you ing include the ID checking here ???? it doesn't have childrennnnn????????????
             if hasattr(initial_node, 'children') and initial_node.children:
                 first_value = initial_node.children[0]
                 print(f"\nProcessing initial value3")
                 print(f"First value node: {first_value.value if hasattr(first_value, 'value') else 'No value'}")
                 print(f"First value type: {first_value.node_type if hasattr(first_value, 'node_type') else 'No type'}")
-                
+            
                 if hasattr(first_value, 'node_type'):
                     if first_value.node_type == "pastaliterals":
                         result = first_value.value.strip('"')
@@ -1776,9 +1775,9 @@ class SemanticAnalyzer:
     def _handle_simmer_loop(self, node):
         """
             -----ing loop-----
-            1: check the ing condition
-            2: execute the ing code
-            -----ing loop-----
+            1: check the condition
+            2: execute thecode
+            -----loop-----
         """
         """NEW, just python while loop"""
         condition_node = node.children[2]

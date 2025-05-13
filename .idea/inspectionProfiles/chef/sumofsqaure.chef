@@ -1,0 +1,30 @@
+dinein
+
+chef pinch dish() {
+    pinch num, i, sum, product, posnum;
+    serve("Enter a number: ");
+    make(num);
+
+    taste (num > 0) {
+        sum = 0;
+        for (i = 1; i <= num; i++) {
+            sum += i * i;
+        } 
+        serve("Sum of squares = ");
+        serve(sum);
+    } elif (num < 0) {
+        product = 1;
+        posnum = num * ~1;
+        for (i = 1; i <= posnum; i++) {
+            product *= i * i;
+        }
+        serve("Product of squares = ");
+        serve(product);
+    } mix {
+        serve("Zero is neither positive nor negative.\n");
+    }
+
+    spit 0;
+}
+
+takeout

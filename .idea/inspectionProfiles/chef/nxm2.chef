@@ -1,0 +1,25 @@
+
+dinein
+
+chef pinch dish() {
+    pinch n, m, i, j, result;
+    
+    serve("Enter rows (N): ");
+    make(n);
+    
+    serve("Enter columns (M): ");
+    make(m);
+
+    for (i = 1; i <= n; i++) {
+        for (j = 1; j <= m; j++) {
+            result = i * j;
+            serve(result);
+            serve(" ");
+        }
+        serve("\n"); 
+    }
+
+    spit 0;
+}
+
+takeout

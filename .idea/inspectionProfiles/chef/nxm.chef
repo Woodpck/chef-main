@@ -1,0 +1,18 @@
+dinein
+chef pinch dish(){
+   
+    pasta output = "";
+    pinch n;
+    make(n);
+    for(pinch i = 0; i <= n; i++){
+        for(pinch j = 0; j <= n; j++){
+            prod = i * j;
+            output += " ";
+            output += prod;    
+        }
+        serve(output);
+        output = "";
+    }
+    spit 0;
+}
+takeout
