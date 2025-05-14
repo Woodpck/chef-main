@@ -1,0 +1,117 @@
+dinein
+
+chef pinch dish(){
+    pinch num;
+    pasta binary = "";
+    pasta octal = "";
+    pasta hex = "";
+
+    serve("Enter a non-negative integer: ");
+    make(num);
+    
+    taste(num < 0){
+        serve("Invalid input: Only non-negative integers are allowed.");
+    }
+    
+    serve("decimal = " + num);
+
+    // Binary conversion
+    temp = num;
+    taste(temp == 0){
+        binary = "0";
+    }mix{
+        simmer(temp > 0){
+            remainder = temp % 2;
+            taste(remainder == 0){
+                binary = "0" + binary;
+            }mix{
+                binary = "1" + binary;
+            }
+            temp = temp / 2;
+        }
+    }
+    
+    // Octal conversion
+    temp = num;
+    taste(temp == 0){
+        octal = "0";
+    }mix{
+        simmer(temp > 0){
+            remainder = temp % 8;
+            taste(remainder == 0){
+                octal = "0" + octal;
+            }elif(remainder == 1){
+                octal = "1" + octal;
+            }elif(remainder == 2){
+                octal = "2" + octal;
+            }elif(remainder == 3){
+                octal = "3" + octal;
+            }elif(remainder == 4){
+                octal = "4" + octal;
+            }elif(remainder == 5){
+                octal = "5" + octal;
+            }elif(remainder == 6){
+                octal = "6" + octal;
+            }mix{
+                octal = "7" + octal;
+            }
+            temp = temp / 8;
+        }
+    }
+    
+    // Hexadecimal conversion
+    temp = num;
+    taste(temp == 0){
+        hex = "0";
+    }mix{
+        simmer(temp > 0){
+            remainder = temp % 16;
+            taste(remainder < 10){
+                taste(remainder == 0){
+                    hex = "0" + hex;
+                }elif(remainder == 1){
+                    hex = "1" + hex;
+                }elif(remainder == 2){
+                    hex = "2" + hex;
+                }elif(remainder == 3){
+                    hex = "3" + hex;
+                }elif(remainder == 4){
+                    hex = "4" + hex;
+                }elif(remainder == 5){
+                    hex = "5" + hex;
+                }elif(remainder == 6){
+                    hex = "6" + hex;
+                }elif(remainder == 7){
+                    hex = "7" + hex;
+                }elif(remainder == 8){
+                    hex = "8" + hex;
+                }mix{
+                    hex = "9" + hex;
+                }
+            }mix{
+                taste(remainder == 10){
+                    hex = "A" + hex;
+                }elif(remainder == 11){
+                    hex = "B" + hex;
+                }elif(remainder == 12){
+                    hex = "C" + hex;
+                }elif(remainder == 13){
+                    hex = "D" + hex;
+                }elif(remainder == 14){
+                    hex = "E" + hex;
+                }mix{
+                    hex = "F" + hex;
+                }
+            }
+            temp = temp / 16;
+        }
+    }
+    
+    serve("binary = " + binary);
+    serve("octal = " + octal);
+    serve("hex = " + hex);
+
+    spit 0;
+}
+
+takeout

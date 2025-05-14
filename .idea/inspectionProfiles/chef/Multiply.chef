@@ -1,0 +1,50 @@
+dinein
+
+chef pinch dish() {
+    pinch input;
+    pinch result;
+    pinch i;
+    pinch current;
+    pinch absInput; 
+    
+    serve("Enter a value: ");
+    make(input);
+    
+
+    taste (input == 0) {
+        serve("Invalid input: Please enter a non-zero integer.");
+    }
+    
+    taste (input > 0) {
+        result = 0;  
+        i = 1;
+        
+        simmer (i <= input) {
+            current = i * i; 
+            result = result + current;
+            serve("Adding " + i + "^2 = " + current);
+            i++;
+        }
+        
+        serve("Sum of squares from 1 to " + input + " = " + result);
+    } mix {
+        result = 1; 
+        i = 1;
+        absInput = 0 - input;  
+        
+        simmer (i <= absInput) {
+            current = i * i;  
+            result = result * current;  
+            serve("Multiplying by " + i + "^2 = " + current);
+            i++;
+        }
+        
+        serve("Product of squares from 1 to " + absInput + " = " + result);
+    }
+    
+    serve("Final result: " + result);
+    
+    spit 0;
+}
+
+takeout
