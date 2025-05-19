@@ -7,8 +7,8 @@ import sys
 import os
 from tkinter import simpledialog
 
-original_stdout = sys.stdout
-sys.stdout = open(os.devnull, 'w')
+# original_stdout = sys.stdout
+# sys.stdout = open(os.devnull, 'w')
 
 app = Flask(__name__)
 
@@ -145,7 +145,11 @@ def index():
                         error_semantic_text = "\n".join(semantic_errors)
 
                     except Exception as e:
-                        error_semantic_text = f"An error occurred during semantic analysis: {e}"
+                        if analyzer.errors:
+                            error_semantic_text = [str(error) for error in analyzer.errors]
+                            error_semantic_text = "\n".join(error_semantic_text)
+                        else:
+                            error_semantic_text = f"An error occurred during semantic analysis: {e}"
 
             # Run Program Action
             if action == "Run":
@@ -164,6 +168,7 @@ def index():
                     else:
                         output_text = "Error: Program analysis not completed properly."
                 else:
+
                     output_text = "Cannot run program with errors."
 
                 active_tab = "output"

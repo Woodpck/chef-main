@@ -157,6 +157,7 @@ class SemanticAnalyzer:
         # Only check for unused variables in local scope
         self._check_unused_local_variables()
         print(f"Analysis complete. Found {len(self.errors)} issues.")
+
         return self.errors
 
     def visit(self, node, parent=None):
@@ -1042,6 +1043,21 @@ class SemanticAnalyzer:
 
                                 value = self._evaluate_condition(expr_node)
                                 print(f"Expression evaluation result: {value}")
+
+
+                                #checking match types
+                                if ((symbol.type == 'pasta' and not isinstance(value, str)) or ((symbol.type == 'pinch' or symbol.type == 'skim') and isinstance(value, str))) or (symbol.type == 'bool' and value not in ['yum', 'bleh']):
+                                    self.errors.append(SemanticError(
+                                        code="TYPE_MISMATCH",
+                                        message=f"Type mismatch in using operator[{raw_op}] to assign value to id[{symbol.type}] with value[{value}]",
+                                        line=getattr(expr_node, 'line_number', None)
+                                    ))
+                                    return
+                                #value validation
+                                if symbol.type == 'pinch':
+                                    value = int(value)
+                                elif symbol.type == 'skim':
+                                    value = float(value)
 
                                 if value is not None:
                                     # Handle different assignment operators
@@ -2076,7 +2092,6 @@ class SemanticAnalyzer:
     def _evaluate_expression(self, node):
         if not node:
             return None
-            
         print("\n" + "="*50)
         print("DEBUG: Starting expression evaluation")
         print("="*50)
@@ -2199,6 +2214,15 @@ class SemanticAnalyzer:
                             identifier=first_child.value
                         ))
                         return None #testing
+                    if self.lookup_symbol(first_child.value).value is None:
+                        line_num = getattr(node, 'line_number', None)
+                        self.errors.append(SemanticError(
+                            code="NONE_VALUE",
+                            message=f"Identifier [{first_child.value}] have a None value!",
+                            line=line_num,
+                            identifier=first_child.value
+                        ))
+                        return None  # testing
                     if node.children[1].children:
                         #fucking function call
                         if node.children[1].children[0].value == '(':
@@ -2493,19 +2517,37 @@ class SemanticAnalyzer:
         right_node = tail_node.children[1]
         right_value = self._evaluate_condition(right_node)
 
-        if tail_node.children[0].value == "<":
-            combined = left_value < right_value
-            return self._process_logical_or_tail(tail_node.children[2], combined)
-        elif tail_node.children[0].value == "<=":
-            combined = left_value <= right_value
-            return self._process_logical_or_tail(tail_node.children[2], combined)
-        if tail_node.children[0].value == ">":
-            combined = left_value > right_value
-            return self._process_logical_or_tail(tail_node.children[2], combined)
-        elif tail_node.children[0].value == ">=":
-            combined = left_value >= right_value
-            return self._process_logical_or_tail(tail_node.children[2], combined)
-        return left_value
+        try:
+            if tail_node.children[0].value == "<":
+                combined = left_value < right_value
+                return self._process_logical_or_tail(tail_node.children[2], combined)
+            elif tail_node.children[0].value == "<=":
+                combined = left_value <= right_value
+                return self._process_logical_or_tail(tail_node.children[2], combined)
+            if tail_node.children[0].value == ">":
+                combined = left_value > right_value
+                return self._process_logical_or_tail(tail_node.children[2], combined)
+            elif tail_node.children[0].value == ">=":
+                combined = left_value >= right_value
+                return self._process_logical_or_tail(tail_node.children[2], combined)
+            return left_value
+        except TypeError:
+            line_num = getattr(tail_node, 'line_number', None)
+            type_names = {
+                'int': 'pinch',
+                'float': 'skin',
+                'str': 'pasta'
+            }
+            self.errors.append(SemanticError(
+                code="CONDITIONAL_MISMATCH",
+                message=(
+                    f"Cannot use operator[{tail_node.children[0].value}] to "
+                    f"[{type_names.get(type(left_value).__name__, type(left_value).__name__)}] and "
+                    f"[{type_names.get(type(right_value).__name__, type(right_value).__name__)}]"
+                ),
+                line=line_num,
+            ))
+            return None
 
     def _evaluate_condition(self, node):
         if not node:
@@ -2648,7 +2690,13 @@ class SemanticAnalyzer:
                 return False
             else:
                 # Normal <logical_or> (no negation)
-                return self._evaluate_expression(first_child)
+                expression_val = self._evaluate_expression(first_child)
+                # if not expression_val:
+                #     self.errors.append(SemanticError("INVALID_OPERANDS",
+                #                                      f"Cannot use '{operator}' to data_types({type(left)},{type(right)})"))
+                #     print("Operands must be int, float, or string-string")
+                #     return None
+                return expression_val
 
         # Handle value nodes
         elif node.value == "<arithmetic_exp>":
