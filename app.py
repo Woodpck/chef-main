@@ -2,12 +2,8 @@ from flask import Flask, render_template, request, jsonify
 from LexicalAnalyzer import LexicalAnalyzer
 from SyntaxAnalyzer import SyntaxAnalyzer, LL1Parser, cfg, parse_table, follow_set
 from SemanticAnalyzer import SemanticAnalyzer
-import time
 import sys
-import os
-
-original_stdout = sys.stdout
-sys.stdout = open(os.devnull, 'w')
+sys.setrecursionlimit(10000)
 
 app = Flask(__name__)
 
@@ -30,168 +26,99 @@ def process_output(raw_output):
     
     return processed
 
-# lex, parse, sem
-def analyze(code):
-    tokens = []
-    syntax_errors = []
-    semantic_errors = []
-    output = ""
-
-    # Lexical Analysis
-    if code.strip():
-        analyzer = LexicalAnalyzer()
-        try:
-            tokens = analyzer.tokenize(code)
-        except Exception as e:
-            return [], [], [f"An error occurred during lexical analysis: {e}"], "Error occurred during analysis"
-
-    # Syntax Analysis
-    if code.strip():
-        try:
-            parser = LL1Parser(cfg, parse_table, follow_set)
-            is_valid, syntax_errors = parser.parse(tokens)
-        except Exception as e:
-            syntax_errors = [f"An error occurred during syntax analysis: {e}"]
-
-    # Semantic Analysis
-    if code.strip():
-        if not syntax_errors:  # Only proceed if syntax analysis passed
-            analyzer = SemanticAnalyzer()
-            semantic_errors_exceptions = analyzer.analyze(parser.parse_tree)
-            
-            for error in semantic_errors_exceptions:
-                semantic_errors.append(str(error))
-            
-            # Get output from semantic analyzer if no errors
-            if not semantic_errors:
-                output = analyzer.get_output()
-                if not output:
-                    output = "Program executed successfully with no output."
-    
-    if syntax_errors or semantic_errors:
-        output = "Cannot run program with errors."
-    
-    return tokens, syntax_errors, semantic_errors, output
-
-@app.route("/download_file", methods=["POST"])
-def download_file():
-    """Handle file download requests."""
-    if request.method == "POST":
-        code_content = request.form.get("code", "")
-        filename = request.form.get("filename", "chefscript_code.chef")
-        
-        # Create a temporary file
-        fd, path = tempfile.mkstemp(suffix=".chef")
-        try:
-            with os.fdopen(fd, 'w') as tmp:
-                tmp.write(code_content)
-            
-            # Send the file to the client
-            return send_file(path, as_attachment=True, 
-                        download_name=filename,
-                        mimetype="text/plain")
-        finally:
-            # Clean up the temporary file
-            os.remove(path)
-    
-    return "Error processing download request", 400
-
 @app.route("/", methods=["GET", "POST"])
 def index():
-    result = []
-    error_tokens_text = ""
-    error_syntax_text = ""
-    error_semantic_text = ""
-    code = ""
-    tokens = []
+    program_code = ""
+    lexeme_token_list = []
+    lexical_errors = ""
+    syntax_errors = ""
+    semantic_errors = ""
+    output_tab_result = ""
     active_tab = "errors"
-    output_text = ""  # For output tab
-    time_execution = 0
-
+    
     if request.method == "POST":
-        start_time = time.time()
-        code = normalize_newlines(request.form.get("code", ""))
-        action = request.form.get("action")
+        has_lexical_passed = False
+        has_syntax_passed = False
+        has_semantic_passed = False
 
-        # Lexical Analysis
-        if code.strip():
-            analyzer = LexicalAnalyzer()
-            try:
-                tokens = analyzer.tokenize(code)
-                result = [(token[0], token[1]) for token in tokens]
-                error_tokens_text = "\n".join(analyzer.errors) if hasattr(analyzer, 'errors') else ""
-            except Exception as e:
-                error_tokens_text = f"An error occurred during lexical analysis: {e}"
-
-        # Syntax Analysis
-        if (action == "Syntax" or action == "Semantic" or action == "Run") and code.strip():
-            try:
-                if not error_tokens_text:
-                    parser = LL1Parser(cfg, parse_table, follow_set)
-                    is_valid, syntax_errors = parser.parse(tokens)
-                    error_syntax_text = "\n".join(syntax_errors)
-            except Exception as e:
-                error_syntax_text = f"An error occurred during syntax analysis: {e}"
-
-        #Semantic Analysis
-        if (action == "Semantic" or action == "Run") and code.strip():
-            if not error_tokens_text and not error_syntax_text:
-                try:
-                    analyzer = SemanticAnalyzer()
-                    semantic_errors_exceptions = analyzer.analyze(parser.parse_tree)
-                    semantic_errors = [str(error) for error in semantic_errors_exceptions]
-                    error_semantic_text = "\n".join(semantic_errors)
-                except Exception as e:
-                    error_semantic_text = f"An error occurred during semantic analysis: {e}"
-
-        # Run Program Action
-        if action == "Run":
-            if not code.strip():  # Check if code is empty or just whitespace
-                # Keep the default "No output generated yet" message by not changing output_text
-                pass  # Don't modify output_text when code is empty
-            elif not error_tokens_text and not error_syntax_text and not error_semantic_text:
-                # Use the existing analyzer instance that was created during semantic analysis
-                if 'analyzer' in locals() and 'parser' in locals():
-                    #semantic_errors_exceptions = analyzer.analyze(parser.parse_tree)
-
-                    if not semantic_errors_exceptions:  # Only proceed if no semantic errors
-                        output_text = process_output(analyzer.get_output())
-                    else:
-                        output_text = "Cannot run program with errors."
-                else:
-                    output_text = "Error: Program analysis not completed properly."
+        # FIX_OPTIONAL: Add empty string validation for code
+        program_code = normalize_newlines(request.form.get("code")).strip()             # Normalize newlines and strip leading and trailing whitespaces
+        try:
+            # Tokenize user inputted code using Lexical Analyzer
+            tokens, errors = LexicalAnalyzer().tokenize(program_code)
+            lexeme_token_list = [(token[0], token[1]) for token in tokens]              # token[0] refers to lexeme, token[1] refers to token type
+            if errors:
+                lexical_errors = "\n\n".join(errors)                                      # Join all the error messages into a single string
             else:
-                output_text = "Cannot run program with errors."
-            
+                has_lexical_passed = True
+        except Exception as e:
+            lexical_errors = f"Lexical Error: {e}"
+
+        # Parse tokens using Syntax Analyzer
+        if has_lexical_passed:
+            print("Lexical passed")
+            try:
+                # analyzer = SyntaxAnalyzer() # it should be like this
+                syntax_analyzer = LL1Parser(cfg, parse_table, follow_set)
+
+                # FIX: it should return the parse tree
+                _, has_syntax_errors = syntax_analyzer.parse(tokens)
+                
+                # Get error
+                syntax_errors = "\n".join(has_syntax_errors)
+
+                if not has_syntax_errors:
+                    has_syntax_passed = True
+            except Exception as e:
+                syntax_errors = f"An error occurred during syntax analysis: {e}"
+        
+        # Parse parse tree using Semantic Analyzer
+        if has_syntax_passed:
+            print("Syntax passed")
+            try:
+                semantic_analyzer = SemanticAnalyzer()
+                # FIX: Should just use the returned parse tree
+                # Should also return output_text
+                semantic_errors_exceptions = semantic_analyzer.analyze(syntax_analyzer.parse_tree)        
+                has_semantic_errors = [str(error) for error in semantic_errors_exceptions]
+                semantic_errors = "\n".join(has_semantic_errors)
+
+                if not has_semantic_errors:
+                    has_semantic_passed = True
+            except Exception as e:
+                semantic_errors = f"An error occurred during semantic analysis: {e}"
+
+        if has_semantic_passed:
+            print("Semantic passed")
+            # FIX: Should just use the returned output
+            output_tab_result = process_output(semantic_analyzer.get_output())
             active_tab = "output"
+
+        if not has_lexical_passed or not has_syntax_passed or not has_semantic_passed:
+            output_tab_result = "Cannot run program with errors."
 
         # Check if this is an AJAX request
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            time_execution = time.time() - start_time
             return jsonify({
-                'result': result,
-                'error_tokens_text': error_tokens_text,
-                'error_syntax_text': error_syntax_text,
-                'error_semantic_text': error_semantic_text,
-                'output_text': output_text,
-                'active_tab': active_tab,
-                'time_execution': time_execution
+                'result': lexeme_token_list,
+                'error_tokens_text': lexical_errors,
+                'error_syntax_text': syntax_errors,
+                'error_semantic_text': semantic_errors,
+                'output_text': output_tab_result,
+                'active_tab': active_tab
             })
 
     # For standard GET requests or non-AJAX POST requests
     return render_template(
         "index.html",
-        code=code,
-        result=result,
-        error_tokens_text=error_tokens_text,
-        error_syntax_text=error_syntax_text,
-        error_semantic_text=error_semantic_text,
-        output_text=output_text,
+        code=program_code,
+        result=lexeme_token_list,
+        error_tokens_text=lexical_errors,
+        error_syntax_text=syntax_errors,
+        error_semantic_text=semantic_errors,
+        output_text=output_tab_result,
         active_tab=active_tab,
-        time_execution=time_execution
     )
-
-
 
 if __name__ == "__main__":
     app.run(debug=True)

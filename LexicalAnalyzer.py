@@ -1,2695 +1,1516 @@
+# CONSTANTS
+EOF = '←'
+
+ALPHA_BIG = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}
+ALPHA_SMALL = {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
+ALL_ALPHA = ALPHA_BIG | ALPHA_SMALL
+ALL_NUM = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+ALPHA_NUM = ALL_ALPHA | ALL_NUM
+UNDER_ALPHA_NUM = ALPHA_NUM | {'_'}
+
+WHITE_SPACE = {' ', '\t', '\n'}
+BOOL_DELIM = {';', ' ', ')', ',', '(', '<', '>', '&', '|'}
+DT_DELIM = {' ', '\t'}
+SPACE_DELIM = {'(',' '}
+SEMICOLON_DELIM = {';'}
+COLON_DELIM = {':'}
+NEWLINE_DELIM = {'\n'}
+OPARAN_DELIM = {'('}
+PASTA_DELIM = {"\t",',', ';', ' ', ':', ')', '}', '+'}
+NUM_DELIM = {' ', '?', '+', '>', '-', ';', ')', '<', '*', '/', '=', '%', ']', ',','{','}', ':'}
+OP_DELIM = {'+', '-', '*', '/', '%', '**'}
+ID_DELIM = {' ', ';', ',', '.', '(', ')', '{', '[', ']', '='} | OP_DELIM
+
+DELIM_1 = {' ', '"', '(', '~'} | ALPHA_NUM
+DELIM_3 = {' ', '(', '~'} | ALPHA_NUM
+DELIM_4 = {';', ')'} | ALPHA_NUM
+DELIM_5 = {' ', '!', '('} | ALPHA_NUM
+DELIM_6 = {'"', '~', '\'', ' '} | ALPHA_NUM
+DELIM_8 = {' ', '~', '"', '\'', '('} | ALPHA_NUM
+DELIM_12 = {')', '!', '\'', '"', ' ', '('} | ALPHA_NUM
+DELIM_13 = {';', '{', ')', '<', '>', '=', '?', '&', '+', '-', '/', '*', '%', ' ', '!'}
+DELIM_14 = {']', ' '} | ALPHA_NUM
+DELIM_15 = {'=', ';', ' ', '\n', '[',"("}
+DELIM_16 = {'\'', '"', '~', ' ', '\n', '{'} | ALPHA_NUM
+DELIM_17 = {';', '}', ',', ' '  , '\n'} | ALPHA_SMALL
+
+# TOKENS
+TT_BLEH = 'bleh'
+TT_BOOL = 'bool'
+TT_CASE = 'case'
+TT_CHEF = 'chef'
+TT_CHOP = 'chop'
+TT_DEFAULT = 'default'
+TT_DINEIN = 'dinein'
+TT_DISH = 'dish'
+TT_ELIF = 'elif'
+TT_FLIP = 'flip'
+TT_FOR = 'for'
+TT_FULL = 'full'
+TT_HUNGRY = 'hungry'
+TT_KEEPMIX = 'keepmix'
+TT_MAKE = 'make'
+TT_MIX = 'mix'
+TT_PASTA = 'pasta'
+TT_PINCH = 'pinch'
+TT_RECIPE = 'recipe'
+TT_SERVE = 'serve'
+TT_SIMMER = 'simmer'
+TT_SKIM = 'skim'
+TT_SPIT = 'spit'
+TT_TAKEOUT = 'takeout'
+TT_TASTE = 'taste'
+TT_YUM = 'yum'
+
+TT_MINUS = '-'
+TT_MINUS_EQUAL = '-='
+TT_DECREMENT = '--'
+TT_COMMA = ','
+TT_NEGATE_OP = '!'
+TT_LOGICAL_NOT = '!!'
+TT_NOT_EQUAL = '!='
+TT_LOGICAL_OR = '??'
+TT_OPARAN = '('
+TT_CPARAN = ')'
+TT_OBRACE = '['
+TT_CBRACE = ']'
+TT_OBRACK = '{'
+TT_CBRACK = '}'
+TT_MULTIPLY = '*'
+TT_MULTIPLY_EQUAL = '*='
+TT_DIVIDE = '/'
+TT_DIVIDE_EQUAL = '/='
+TT_LOGICAL_AND = '&&'
+TT_MODULO = '%'
+TT_MODULO_EQUAL = '%='
+TT_PLUS = '+'
+TT_INCREMENT = '++'
+TT_PLUS_EQUAL = '+='
+TT_LESS_THAN = '<'
+TT_LESS_THAN_EQUAL = '<='
+TT_ASSIGN = '='
+TT_EQUAL_TO = '=='
+TT_GREATER_THAN = '>'
+TT_GREATER_THAN_EQUAL = '>='
+
+TT_PASTA_LITERAL = 'pastaliterals'
+TT_PINCH_LITERAL = 'pinchliterals'
+TT_SKIM_LITERAL = 'skimliterals'
+TT_IDENTIFIER = 'identifier'
+
+TT_SEMI_COLON = ';'
+TT_COLON = ':'
+
+# ERRORS
+class Error:
+    def __init__(self, pos_start, pos_end, error_name, details):
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+        self.error_name = error_name
+        self.details = details
+    
+    def as_string(self):
+        '''This formats the error message like: `Lexical Error: Invalid character '@' at line X, column Y`'''
+        result = f'{self.error_name}: {self.details} at line {self.pos_start.ln + 1}, column {self.pos_start.col + 1}\n'
+        result += f'    {self.get_error_line()}\n'
+        result += f'    {"~" * (self.pos_start.col)}^'          # Error pointer
+        
+        # # Add the error line where the invalid character was found
+        # error_line = self.get_error_line()
+        # if error_line:  # If there's an error line, append it
+        #     result += f'    {error_line}\n'
+        #     result += f'    {"~" * (self.pos_start.col)}^'  # Error pointer
+        # else:
+        #     result += "    Error line not found.\n"
+        
+        return result
+
+    def get_error_line(self):
+        '''This method returns the line of code that caused the error'''
+        lines = self.pos_start.ftxt.split('\n')
+        return lines[self.pos_start.ln] if self.pos_start.ln < len(lines) else ""
+    
+        # print(f'[Get_error-line]: lines variable contains: {lines}')
+        # if self.pos_start.ln < len(lines):
+        #     return lines[self.pos_start.ln]
+        # else:
+        #     print(f"Error: Line index {self.pos_start.ln} out of range for file.")
+        #     print(f"File content: {self.pos_start.ftxt}")  # Debugging
+        #     return ""  # In case of invalid line index
+
+# NEW INVALID CLASS
+class LexicalError(Error):
+    def __init__(self, pos_start, pos_end, details):
+        super().__init__(pos_start, pos_end, "LexicalError", details)
+
+# POSITION
+class Position:
+    def __init__(self, idx, ln, col, ftxt):
+        self.idx = idx
+        self.ln = ln
+        self.col = col
+        self.ftxt = ftxt
+
+    def track_next_character(self, current_character):
+        self.idx += 1
+        self.col += 1
+
+        if current_character == '\n':
+            self.ln += 1                # Move to the next line
+            self.col = 0                # Reset column to 0
+        
+        # Debugging line
+        # print(f"Tracking character: {current_character} at line {self.ln}, column {self.col}")  
+        return self
+
+    def copy(self):
+        return Position(self.idx, self.ln, self.col, self.ftxt)
+
+# LEXER
 class LexicalAnalyzer:
     def __init__(self):
-        self.whitespace = {' ', '\t', '\n'}
-        self.alpha_big = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-        self.alpha_small = set("abcdefghijklmnopqrstuvwxyz")
-        self.all_num = set("0123456789")
-        self.all_alpha = self.alpha_small | self.alpha_big
-        self.alpha_num = self.all_alpha | self.all_num
-        self.bool_delim = {';' , ' ' , ',',')'}
-        self.dt_delim = {' ', '\t'}
-        self.space_delim = {' '}
-        self.semicolon_delim = {';'}
-        self.colon_delim = {':'}
-        self.newline_delim ={'\n'}
-        self.oparan_delim = {'('}
-        self.delim0 = {' ', '\t', '\n', '(', ')', ';', ',', '{', '}', '[', ']', '=', '+', '-', '*', '/', '%', '<', '>', '&', '|', '?', '!', '"', '~'}
-        
-        self.bool_delim = {';', ' ', ')', ',', '(', '<', '>', '&', '|'}
-        self.operator_delim = {'>', '<', '=', '&', '|', '+', '-', '*', '/', '%'}
-        
-        self.delim1 = {' ', '"', '(', '~'} | self.alpha_num
-        self.delim2 = {' ', '{'}
-        self.delim3 = {' ', '(', '~'} | self.alpha_num
-        self.delim4 = {';', ')'} | self.alpha_num
-        self.delim5 = {' ', '!', '('} | self.alpha_num
-        self.delim6 = {'"', '~', '\'', ' '} | self.alpha_num
-        self.delim7 = {'('}
-        self.delim8 = {' ', '~', '"', '\'', '('} | self.alpha_num
-        self.num_delim = {' ', '?', '+', '>', '-', ';', ')', '<', '*', '/', '=', '%', ']', ',','{','}', ':'}
-
-        self.delim12 = {')', '!', '\'', '"', ' ', '('} | self.alpha_num
-        self.delim13 = {';', '{', ')', '<', '>', '=', '?', '&', '+', '-', '/', '*', '%', ' ', '!'}
-        self.delim14 = {']', ' '} | self.alpha_num
-        self.delim15 = {'=', ';', ' ', '\n', '[',"("}
-        self.delim16 = {'\'', '"', '~', ' ', '\n', '{'} | self.alpha_num
-        self.delim17 = {';', '}', ',', ' '  , '\n'} | self.alpha_small   
-
-        self.com_delim = {'\n'}
-        self.pasta_delim = {"\t",',', ';', ' ', ':', ')', '}', '+'}
-        self.opdelim = {'+', '-', '*', '/', '%', '**'}
-        self.id_delim = {' ', ';', ',', '.', '(', ')', '{', '[', ']', '='} | self.opdelim
-
-        self.quotes = {'"', '“', '”'}
-        self.ascii_delim = {chr(i) for i in range(32, 127)} | self.whitespace
-        self.asciicmnt = {chr(i) for i in range(32, 127) if chr(i) not in {'/', '-'}} | {'\t', '\n'} 
-        self.asciistr = ({chr(i) for i in range(32, 127) if chr(i) not in self.quotes } | {'\t', '\n', '\\', '“', '”'})
-        
-        self.errors = []
-        self.code = ""
-        self.index = 0
-        self.line_number = 1
+        self.code = None
+        self.pos = None
+        self.current_character = None
         self.identifier_count = 0
-
-    def nextChar(self):
-            if self.index < len(self.code):
-                c = self.code[self.index]
-                self.index += 1
-                return c
-            return None
+        self.line_number = 1                        # Start tracking line number from 1
         
-    def stepBack(self):
-            if self.index > 0:
-                self.index -= 1
+    def initialize_lexer(self, code):
+        self.code = code + EOF                      # Append EOF to signal end of file
+        self.pos = Position(-1, 0, -1, code)        # Position starts at index 0
+        self.read_next_character()                  # Set the first character
+
+    def read_next_character(self):
+        self.pos.track_next_character(self.current_character)
+        self.current_character = self.code[self.pos.idx] if self.pos.idx < len(self.code) else None
+
+    def match_char_and_advance(self, expected_char):
+        if self.current_character == expected_char:
+            self.read_next_character()
+            return True
+        return False
+    
+    def reserve_and_transition(self, string_buffer, next_state):
+        string_buffer += self.current_character     # Collect the current character
+        return string_buffer, next_state
+
+    def fallback_to_identifier(self, position, next_state):
+        self.pos = position.copy()
+        self.current_character = self.code[self.pos.idx] if self.pos.idx < len(self.code) else None
+        fall_back = self.current_character
+        self.read_next_character()
+        return fall_back, next_state
+
+    def check_delimiter(self, delimiter_set):
+        # !IMPORTANT: Revisit EOF logic
+        return self.current_character in delimiter_set or self.current_character == EOF
+
+    def emit_token(self, tokens, token_type, value):
+        tokens.append((value, token_type, self.pos.ln))
+    
+    def process_string_literal(self, string_literal, next_state):
+        ESCAPE_MAP = {'"': '"', '\\': '\\', 'n': '\n', 't': '\t'}
+
+        if self.match_char_and_advance('\\'):               # If backslash found, handle escape sequences
+            escape_char = self.current_character
+            if escape_char in ESCAPE_MAP:
+                string_literal += ESCAPE_MAP[escape_char]
+            else:
+                string_literal += escape_char               # If unknown escape, include as-is
+        else:
+            string_literal += self.current_character        # Regular character in literal
+
+        self.read_next_character()                          # Ensure you're reading the next character here
+
+        return string_literal, next_state
+
+    def append_digit_and_advance(self, literal: str) -> tuple[bool, str]:
+        if self.current_character.isdigit():
+            literal += self.current_character
+            self.read_next_character()
+            return True, literal
+        return False, literal
+
+    def display_lexical_error(self, start_pos, end_pos, error_ref, error_message):
+        self.read_next_character()
+        error_ref.append(LexicalError(start_pos, end_pos, error_message))
 
     def tokenize(self, code):
-        self.code = code
         tokens = []
-        self.index = 0
+        errors = []
         state = 0
-        lexeme = ""
-        line = 1
-        self.identifier_count = 0
 
-        while True:
-            c = self.nextChar()
+        self.initialize_lexer(code)
+        print(self.code)
 
-            if c is None and state == 0:
-                break
-            
-            
-            # print(f"State: {state}, char: {repr(c)}, Lexeme: {repr(lexeme)}, Line: {line}")
-            
-            match state:
-                case 0:
-                    lexeme = ""
-                    
-                    if c == 'b':
-                        state = 1
-                        lexeme += 'b'
-                    elif c == 'c':
-                        state = 10
-                        lexeme += 'c'
-                    elif c == 'd':
-                        state = 22
-                        lexeme += 'd'
-                    elif c == 'e':
-                        state = 39
-                        lexeme += 'e'
-                    elif c == 'f':
-                        state = 44
-                        lexeme += 'f'
-                    elif c == 'h':
-                        state = 56
-                        lexeme += 'h'
-                    elif c == 'k':
-                        state = 63
-                        lexeme += 'k'
-                    elif c == 'm':
-                        state = 71
-                        lexeme += 'm'
-                    elif c == 'p':
-                        state = 79
-                        lexeme += 'p'
-                    elif c == 'r':
-                        state = 90
-                        lexeme += 'r'
-                    elif c == 's':
-                        state = 97
-                        lexeme += 's'
-                    elif c == 't':
-                        state = 117
-                        lexeme += 't'
-                    elif c == 'y':
-                        state = 129
-                        lexeme += 'y'
-                    elif c == ' ':
-                        continue  # Simply skip space
-                    elif c == '\t':
-                        continue  # Skip tab
-                    elif c == '\n':
-                        line += 1  # Increment line number
-                    elif c == '-':
-                        state = 139
-                        lexeme += '-'
-                    elif c == ',':
-                        state = 145
-                        lexeme += ','
-                    elif c == '!':
-                        state = 147
-                        lexeme += '!'
-                    elif c == '?':
-                        state = 153
-                        lexeme += '?'
-                    elif c == '(':
-                        state = 156
-                        lexeme += '('
-                    elif c == ')':
-                        state = 158
-                        lexeme += ')'
-                    elif c == '[':
-                        state = 160
-                        lexeme += '['
-                    elif c == ']':
-                        state = 162
-                        lexeme += ']'
-                    elif c == '{':
-                        state = 164
-                        lexeme += '{'
-                    elif c == '}':
-                        state = 166
-                        lexeme += '}'
-                    elif c == '*':
-                        state = 168
-                        lexeme += '*'
-                    elif c == '/':
-                        state = 172
-                        lexeme += '/'
-                    elif c == '&':
-                        state = 180
-                        lexeme += '&'
-                    elif c == '%':
-                        state = 183
-                        lexeme += '%'
-                    elif c == '+':
-                        state = 187
-                        lexeme += '+'
-                    elif c == '<':
-                        state = 193
-                        lexeme += '<'
-                    elif c == '=':
-                        state = 197
-                        lexeme += '='
-                    elif c == '>':
-                        state = 201
-                        lexeme += '>'
-                    elif c == '"':
-                        state = 205
-                        lexeme += '"'
-                    elif c == '~':
-                        state = 208
-                        lexeme += c  
-                    elif c in self.all_num:
-                        state = 209
-                        lexeme += c   
-                    elif c in self.alpha_small:
-                        state = 230
-                        lexeme += c
-                    elif c == ';':
-                        state = 234
-                        lexeme += c
-                    elif c == ':':
-                        state = 236
-                        lexeme += c    
-                    else:
-                        self.errors.append(f"Line {line}: Unexpected Character '{c}'.")
-                    
-                
-                case 1:
-                    if c == 'l':
-                        state = 2
-                        lexeme += c
-                    elif c == 'o':
-                        state = 6
-                        lexeme += c
-                    elif c in self.id_delim:  # If we see a valid delimiter, it's a single-char identifier
-                        tokens.append((lexeme,'identifier',line))
-                        if c is not None:
-                            self.stepBack()
-                        state = 0
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 2:
-                    if c == 'e':
-                        state = 3
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 3:
-                    if c == 'h':
-                        state = 4
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                    
-                case 4:
-                    if c in self.bool_delim:
-                        state = 5
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 5:
-                    tokens.append((lexeme, "bleh",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 6:
-                    if c == 'o':
-                        state = 7
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 7:
-                    if c == 'l':
-                        state = 8
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 8:
-                    if c in self.dt_delim:
-                        state = 9
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 9:
-                    tokens.append((lexeme, "bool",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                
-                case 10:
-                    if c == 'a':
-                        state = 11
-                        lexeme += c
-                    elif c == 'h':
-                        state = 15
-                        lexeme += c
-                    elif c in self.id_delim: 
-                        tokens.append((lexeme,'identifier',line))
-                        if c is not None:
-                            self.stepBack()
-                        state = 0
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                    
-                case 11:
-                    if c == 's':
-                        state = 12
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 12:
-                    if c == 'e':
-                        state = 13
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 13:
-                    if c in self.space_delim:
-                        state = 14
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 14:
-                    tokens.append((lexeme, "case",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                
-                case 15:
-                    if c == 'e':
-                        state = 16
-                        lexeme += c
-                    elif c == 'o':
-                        state = 19
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
+        while self.current_character is not None:
+            start_position = self.pos.copy()
+            # Debugging state and current character
+            print(f"Index: {self.pos.idx}, Current Character: '{self.current_character}', State: {state}")
 
-                case 16:
-                    if c == 'f':
-                        state = 17
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 17:
-                    if c in self.space_delim:
-                        state = 18
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 18:
-                    tokens.append((lexeme, "chef",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                
-                case 19:
-                    if c == 'p':
-                        state = 20
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 20:
-                    if c in self.semicolon_delim:
-                        state = 21
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 21:
-                    tokens.append((lexeme, "chop",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 22:
-                    if c == 'e':
-                        state = 23
-                        lexeme += c
-                    elif c == 'i':
-                        state = 30
-                        lexeme += c
-                    elif c in self.id_delim:
-                        tokens.append((lexeme,'identifier',line))
-                        if c is not None:
-                            self.stepBack()
-                        state = 0
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 23:
-                    if c == 'f':
-                        state = 24
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 24:
-                    if c == 'a':
-                        state = 25
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 25:
-                    if c == 'u':
-                        state = 26
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 26:
-                    if c == 'l':
-                        state = 27
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 27:
-                    if c == 't':
-                        state = 28
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 28:
-                    if c in self.colon_delim:
-                        state = 29
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 29:
-                    tokens.append((lexeme, "default",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 30:
-                    if c == 'n':
-                        state = 31
-                        lexeme += c
-                    elif c == 's':
-                        state = 36
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 31:
-                    if c == 'e':
-                        state = 32
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 32:
-                    if c == 'i':
-                        state = 33
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 33:
-                    if c == 'n':
-                        state = 34
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                    
-                case 34:
-                    if c in self.newline_delim or c.isspace():
-                        state = 35
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                        
-                case 35:
-                    tokens.append((lexeme, "dinein",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 36:
-                    if c == 'h':
-                        state = 37
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 37:
-                    if c in self.oparan_delim:
-                        state = 38
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 38:
-                    tokens.append((lexeme, "dish",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                
-                case 39:
-                    if c == 'l':
-                        state = 40
-                        lexeme += c
-                    elif c in self.id_delim:
-                        tokens.append((lexeme,'identifier',line))
-                        if c is not None:
-                            self.stepBack()
-                        state = 0
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 40:
-                    if c == 'i':
-                        state = 41
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 41:
-                    if c == 'f':
-                        state = 42
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 42:
-                    if c in self.delim0:
-                        state = 43
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 43:
-                    tokens.append((lexeme, "elif",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 44:
-                    if c == 'l':
-                        state = 45
-                        lexeme += c
-                    elif c == 'o':
-                        state = 49
-                        lexeme += c
-                    elif c == 'u':
-                        state = 52
-                        lexeme += c
-                    elif c in self.id_delim:
-                        tokens.append((lexeme,'identifier',line))
-                        if c is not None:
-                            self.stepBack()
-                        state = 0
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 45:
-                    if c == 'i':
-                        state = 46
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 46:
-                    if c == 'p':
-                        state = 47
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 47:
-                    if c in self.delim0:
-                        state = 48
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 48:
-                    tokens.append((lexeme, "flip",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 49:
-                    if c == 'r':
-                        state = 50
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 50:
-                    if c in self.delim0:
-                        state = 51
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 51:
-                    tokens.append((lexeme, "for",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 52:
-                    if c == 'l':
-                        state = 53
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 53:
-                    if c == 'l':
-                        state = 54
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 54:
-                    if c in self.dt_delim:
-                        state = 55
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 55:
-                    tokens.append((lexeme, "full",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 56:
-                    if c == 'u':
-                        state = 57
-                        lexeme += c
-                    elif c in self.id_delim:
-                        tokens.append((lexeme,'identifier',line))
-                        if c is not None:
-                            self.stepBack()
-                        state = 0
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 57:
-                    if c == 'n':
-                        state = 58
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 58:
-                    if c == 'g':
-                        state = 59
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 59:
-                    if c == 'r':
-                        state = 60
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 60:
-                    if c == 'y':
-                        state = 61
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 61:
-                    if c in self.space_delim:
-                        state = 62
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 62:
-                    tokens.append((lexeme, "hungry",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 63:
-                    if c == 'e':
-                        state = 64
-                        lexeme += c
-                    elif c in self.id_delim:
-                        tokens.append((lexeme,'identifier',line))
-                        if c is not None:
-                            self.stepBack()
-                        state = 0
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 64:
-                    if c == 'e':
-                        state = 65
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 65:
-                    if c == 'p':
-                        state = 66
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 66:
-                    if c == 'm':
-                        state = 67
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                    
-                case 67:
-                    if c == 'i':
-                        state = 68
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 68:
-                    if c == 'x':
-                        state = 69
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 69:
-                    if c in self.delim2:
-                        state = 70
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 70:
-                    tokens.append((lexeme, "keepmix",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 71:
-                    if c == 'a':
-                        state = 72
-                        lexeme += c
-                    elif c == 'i':
-                        state = 76
-                        lexeme += c
-                    elif c in self.id_delim:
-                        tokens.append((lexeme,'identifier',line))
-                        if c is not None:
-                            self.stepBack()
-                        state = 0
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 72:
-                    if c == 'k':
-                        state = 73
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 73:
-                    if c == 'e':
-                        state = 74
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 74:
-                    if c in self.delim0:
-                        state = 75
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 75:
-                    tokens.append((lexeme, "make",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 76:
-                    if c == 'x':
-                        state = 77
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 77:
-                    if c in self.delim2:
-                        state = 78
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 78:
-                    tokens.append((lexeme, "mix",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                        
-                case 79:
-                    if c == 'a':
-                        state = 80
-                        lexeme += c
-                    elif c == 'i':
-                        state = 85
-                        lexeme += c
-                    elif c in self.id_delim:
-                        tokens.append((lexeme,'identifier',line))
-                        if c is not None:
-                            self.stepBack()
-                        state = 0
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 80:
-                    if c == 's':
-                        state = 81
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 81:
-                    if c == 't':
-                        state = 82
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 82:
-                    if c == 'a':
-                        state = 83
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 83:
-                    if c in self.dt_delim:
-                        state = 84
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 84:
-                    tokens.append((lexeme, "pasta",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 85:
-                    if c == 'n':
-                        state = 86
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 86:
-                    if c == 'c':
-                        state = 87
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 87:
-                    if c == 'h':
-                        state = 88
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                    
-                case 88:
-                    if c in self.dt_delim:
-                        state = 89
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 89:
-                    tokens.append((lexeme, "pinch",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                        
-                case 90:
-                    if c == 'e':
-                        state = 91
-                        lexeme += c
-                    elif c in self.id_delim:
-                        tokens.append((lexeme,'identifier',line))
-                        if c is not None:
-                            self.stepBack()
-                        state = 0
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 91:
-                    if c == 'c':
-                        state = 92
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 92:
-                    if c == 'i':
-                        state = 93
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 93:
-                    if c == 'p':
-                        state = 94
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 94:
-                    if c == 'e':
-                        state = 95
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 95:
-                    if c in self.dt_delim:
-                        state = 96
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 96:
-                    tokens.append((lexeme, "recipe",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                
-                case 97:
-                    if c == 'e':
-                        state = 98
-                        lexeme += c
-                    elif c == 'i':
-                        state = 103
-                        lexeme += c
-                    elif c == 'k':
-                        state = 109
-                        lexeme += c
-                    elif c == 'p':
-                        state = 113
-                        lexeme += c
-                    elif c in self.id_delim:
-                        tokens.append((lexeme,'identifier',line))
-                        if c is not None:
-                            self.stepBack()
-                        state = 0
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 98:
-                    if c == 'r':
-                        state = 99
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 99:
-                    if c == 'v':
-                        state = 100
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 100:
-                    if c == 'e':
-                        state = 101
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 101:
-                    if c in self.delim0:
-                        state = 102
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 102:
-                    tokens.append((lexeme, "serve",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 103:
-                    if c == 'm':
-                        state = 104
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 104:
-                    if c == 'm':
-                        state = 105
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 105:
-                    if c == 'e':
-                        state = 106
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 106:
-                    if c == 'r':
-                        state = 107
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 107:
-                    if c in self.delim0:
-                        state = 108
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 108:
-                    tokens.append((lexeme, "simmer",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                        
-                case 109:
-                    if c == 'i':
-                        state = 110
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 110:
-                    if c == 'm':
-                        state = 111
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 111:
-                    if c in self.dt_delim:
-                        state = 112
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 112:
-                    tokens.append((lexeme, "skim",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 113:
-                    if c == 'i':
-                        state = 114
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 114:
-                    if c == 't':
-                        state = 115
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 115:
-                    if c in self.space_delim:
-                        state = 116
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 116:
-                    tokens.append((lexeme, "spit",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 117:
-                    if c == 'a':
-                        state = 118
-                        lexeme += c
-                    elif c in self.id_delim:
-                        tokens.append((lexeme,'identifier',line))
-                        if c is not None:
-                            self.stepBack()
-                        state = 0
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                    
-                case 118:
-                    if c == 'k':
-                        state = 119
-                        lexeme += c
-                    elif c == 's':
-                        state = 125
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 119:
-                    if c == 'e':
-                        state = 120
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 120:
-                    if c == 'o':
-                        state = 121
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 121:
-                    if c == 'u':
-                        state = 122
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 122:
-                    if c == 't':
-                        state = 123
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 123:
-                    if c is None or c in self.whitespace:
-                        state = 124
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 124:
-                    tokens.append((lexeme, "takeout",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 125:
-                    if c == 't':
-                        state = 126
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 126:
-                    if c == 'e':
-                        state = 127
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 127:
-                    if c in self.delim0:
-                        state = 128
-                        if c is not None:
-                            self.stepBack() 
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 128:
-                    tokens.append((lexeme, "taste",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 129:
-                    if c == 'u':
-                        state = 130
-                        lexeme += c
-                    elif c in self.id_delim:
-                        tokens.append((lexeme,'identifier',line))
-                        if c is not None:
-                            self.stepBack()
-                        state = 0
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                    
-                case 130:
-                    if c == 'm':
-                        state = 131
-                        lexeme += c
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                    
-                case 131:
-                    if c in self.bool_delim:
-                        state = 132
-                        if c is not None:
-                            self.stepBack()
-                    elif c and (c.isalpha() or c.isdigit() or c == '_'):
-                        state = 232
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 132:
-                    tokens.append((lexeme, "yum",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 133:
-                    if c is None or c in self.ascii_delim:
-                        state = 134
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: 'space' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 134:
-                    tokens.append((" ", " ",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 135:
-                    if c is None or c in self.ascii_delim:
-                        state = 136
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: 'tab' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 136:
-                    tokens.append(("\\t", "\\t",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 137:
-                    if c is None or c in self.ascii_delim:
-                        state = 138
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: 'newline' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 138:
-                    tokens.append(("\\n", "\\n",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 139:
-                    if c in self.delim3:
-                        state = 140
-                        if c is not None:
-                            self.stepBack()
-                    elif c == '-':
-                        state = 141
-                        lexeme += c
-                    elif c == '=':
-                        state = 143
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 140:
-                    tokens.append((lexeme, "-",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 141:
-                    if c in self.delim4:
-                        state = 142
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 142:
-                    tokens.append((lexeme, "--",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 143:
-                    if c in self.delim5:
-                        state = 144
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 144:
-                    tokens.append((lexeme, "-=",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                
-                case 145:
-                    if c in self.delim6:
-                        state = 146
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 146:
-                    tokens.append((lexeme, ",",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 147:
-                    if c in self.delim7:
-                        state = 148
-                        if c is not None:
-                            self.stepBack()
-                    elif c == '!':
-                        state = 149
-                        lexeme += c
-                    elif c == '=':
-                        state = 151
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 148:
-                    tokens.append((lexeme, "!",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 149:
-                    if c in self.delim3:
-                        state = 150
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 150:
-                    tokens.append((lexeme, "!!",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                
-                case 151:
-                    if c in self.delim8:
-                        state = 152
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 152:
-                    tokens.append((lexeme, "!=",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                        
-                case 153:
-                    if c == '?':
-                        state = 154                        
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 154:
-                    if c in self.delim3:
-                        state = 155
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 155:
-                    tokens.append((lexeme, "??",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 156:
-                    if c in self.delim12:
-                        state = 157
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 157:
-                    tokens.append((lexeme, "(",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 158:
-                    if c in self.delim13:
-                        state = 159
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 159:
-                    tokens.append((lexeme, ")",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 160:
-                    if c in self.delim14:
-                        state = 161
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 161:
-                    tokens.append((lexeme, "[",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 162:
-                    if c in self.delim15:
-                        state = 163
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 163:
-                    tokens.append((lexeme, "]",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 164:
-                    if c in self.delim16:
-                        state = 165
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 165:
-                    tokens.append((lexeme, "{",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 166:
-                    if c in self.delim17:
-                        state = 167
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 167:
-                    tokens.append((lexeme, "}",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                  
-                case 168:
-                    if c in self.delim3:
-                        state = 169
-                        if c is not None:
-                            self.stepBack()
-                    elif c == '=':
-                        state = 170
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 169:
-                    tokens.append((lexeme, "*",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0  
-                    
-                case 170:
-                    if c in self.delim5:
-                        state = 171
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 171:
-                    tokens.append((lexeme, "*=",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0 
-                    
-                case 172:
-                    if c in self.delim3:
-                        state = 173
-                        if c is not None:
-                            self.stepBack()
-                    elif c == '/':
-                        state = 174
-                        lexeme += c
-                    elif c == '-':
-                        state = 176
-                        lexeme += c
-                    elif c == '=':  # Handle the '/=' operator
-                        state = 238
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 173:
-                    tokens.append((lexeme, "/",line))
-                    if c is not None:
-                        self.stepBack()
-                    state = 0
-                    
-                case 174:
-                    if c == '\n' or c is None:
-                        tokens.append((lexeme, "singlecomment",line))
-                        state = 0
-                    else:
-                        state = 174 
-                        lexeme += c
-                        
-                case 175:
-                    if c in self.asciicmnt:
-                        state = 175
-                        lexeme += c
-                    elif c in self.com_delim:
-                        tokens.append((lexeme, "singlecomment",line))
-                        if c is not None:
-                            self.stepBack()
-                        state = 0
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0 
-                    
-                case 176:
-                    if c in self.asciicmnt:
-                        state = 176
-                        lexeme += c
-                    elif c == '-':
-                        state = 177
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                    
-                case 177:
-                    if c == '/':
-                        state = 178
-                        lexeme += c
-                        tokens.append((lexeme, "multicomment",line))
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0  
+            if state == 0:
+                str_buffer = ""
+                str_start_ = self.pos.copy()
+                pasta_literal = ""
 
-                        
-                case 178:
-                    if c is not None:
-                        self.stepBack()
+                # reserved words
+                if self.match_char_and_advance('b'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 1)
+                elif self.match_char_and_advance('c'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 10)
+                elif self.match_char_and_advance('d'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 22)
+                elif self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 39)
+                elif self.match_char_and_advance('f'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 44)
+                elif self.match_char_and_advance('h'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 56)
+                elif self.match_char_and_advance('k'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 63)
+                elif self.match_char_and_advance('m'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 71)
+                elif self.match_char_and_advance('p'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 79)
+                elif self.match_char_and_advance('r'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 90)
+                elif self.match_char_and_advance('s'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 97)
+                elif self.match_char_and_advance('t'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 117)
+                elif self.match_char_and_advance('y'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 129)
+                # in original lexer, they skipped 133
+                # in original lexer, they skipped 135
+                # in original lexer, they skipped 137
+                # reserved symbols
+                elif    self.match_char_and_advance('-'):       state = 139
+                elif    self.match_char_and_advance(','):       state = 145
+                elif    self.match_char_and_advance('!'):       state = 147
+                elif    self.match_char_and_advance('?'):       state = 153
+                elif    self.match_char_and_advance('('):       state = 156
+                elif    self.match_char_and_advance(')'):       state = 158
+                elif    self.match_char_and_advance('['):       state = 160
+                elif    self.match_char_and_advance(']'):       state = 162
+                elif    self.match_char_and_advance('{'):       state = 164
+                elif    self.match_char_and_advance('}'):       state = 166
+                elif    self.match_char_and_advance('*'):       state = 168
+                elif    self.current_character == '/':
+                    comment_start_pos = self.pos.copy()
+                    self.read_next_character()
+                    state = 172
+                elif    self.match_char_and_advance('&'):       state = 181
+                elif    self.match_char_and_advance('%'):       state = 184
+                elif    self.match_char_and_advance('+'):       state = 188
+                elif    self.match_char_and_advance('<'):       state = 194
+                elif    self.match_char_and_advance('='):       state = 198
+                elif    self.match_char_and_advance('>'):       state = 202
+                elif    self.match_char_and_advance('"'):       state = 206
+                
+                # pinch and skim literals 
+                elif self.current_character == '~':
+                    is_negative = True
+                    negative_sign_pos = self.pos.copy()
+                    self.read_next_character()
+                    state = 209
+                elif self.current_character.isdigit():       
+                    is_negative = False
+                    state = 209
+                
+                # identifiers
+                elif self.current_character.islower():
+                    identifier = self.current_character
+                    self.read_next_character()
+                    state = 231
+
+                elif    self.match_char_and_advance(';'):       state = 235
+                elif    self.match_char_and_advance(':'):       state = 237
+                elif    self.check_delimiter(WHITE_SPACE):      self.read_next_character()          # Captures space, newline, and tab                    
+                else:
+                    '''Captures characters not present above like: @'''
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
 
-                        
-                case 179:
-                    if c is not None:
-                        self.stepBack()
+            elif state == 1:
+                if self.match_char_and_advance('l'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 2)
+                elif self.match_char_and_advance('o'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 6)
+                else:
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 2:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 3)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 3:
+                if self.match_char_and_advance('h'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 4)
+                else:                                               
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 4:
+                if self.check_delimiter(BOOL_DELIM):       
+                    state = 5
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 5:
+                self.emit_token(tokens, TT_BLEH, 'bleh')
+                state = 0
+            elif state == 6:
+                if self.match_char_and_advance('o'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 7)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 7:
+                if self.match_char_and_advance('l'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 8)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 8:
+                if self.check_delimiter(DT_DELIM):         
+                    state = 9
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 9:
+                self.emit_token(tokens, TT_BOOL, 'bool')
+                state = 0
+            elif state == 10:
+                if self.match_char_and_advance('a'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 11)
+                elif self.match_char_and_advance('h'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 15)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 11:
+                if self.match_char_and_advance('s'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 12)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 12:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 13)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 13:
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 14
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 14:
+                self.emit_token(tokens, TT_CASE, 'case')
+                state = 0
+            elif state == 15:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 16)
+                elif self.match_char_and_advance('o'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 19)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 16:
+                if self.match_char_and_advance('f'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 17)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 17:
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 18
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 18:
+                self.emit_token(tokens, TT_CHEF, 'chef')
+                state = 0
+            elif state == 19:
+                if self.match_char_and_advance('p'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 20)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 20:
+                if self.check_delimiter(SEMICOLON_DELIM):  
+                    state = 21
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 21:
+                self.emit_token(tokens, TT_CHOP, 'chop')
+                state = 0
+            elif state == 22:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 23)
+                elif self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 30)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 23:
+                if self.match_char_and_advance('f'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 24)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 24:
+                if self.match_char_and_advance('a'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 25)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 25:
+                if self.match_char_and_advance('u'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 26)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 26:                                               
+                if self.match_char_and_advance('l'):
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 27)
+                else:
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 27:
+                if self.match_char_and_advance('t'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 28)
+                else:
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 28:
+                if self.check_delimiter(COLON_DELIM):      
+                    state = 29
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 29:
+                self.emit_token(tokens, TT_DEFAULT, 'default')
+                state = 0
+            elif state == 30:
+                if self.match_char_and_advance('n'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 31)
+                elif self.match_char_and_advance('s'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 36)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 31:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 32)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 32:
+                if self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 33)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 33:
+                if self.match_char_and_advance('n'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 34)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 34:
+                if self.check_delimiter(NEWLINE_DELIM):    
+                    state = 35
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 35:
+                self.emit_token(tokens, TT_DINEIN, 'dinein')
+                state = 0
+            elif state == 36:
+                if self.match_char_and_advance('h'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 37)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 37:
+                if self.check_delimiter(OPARAN_DELIM):     
+                    state = 38
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 38:
+                self.emit_token(tokens, TT_DISH, 'dish')
+                state = 0
+            elif state == 39:
+                if self.match_char_and_advance('l'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 40)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 40:
+                if self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 41)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 41:
+                if self.match_char_and_advance('f'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 42)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 42:
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 43          # In docs, this is delim0
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 43:
+                self.emit_token(tokens, TT_ELIF, 'elif')
+                state = 0
+            elif state == 44:
+                if self.match_char_and_advance('l'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 45)
+                elif self.match_char_and_advance('o'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 49)
+                elif self.match_char_and_advance('u'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 52)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 45:
+                if self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 46)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 46:
+                if self.match_char_and_advance('p'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 47)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 47:
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 48          # In docs, this is delim0
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 48:
+                self.emit_token(tokens, TT_FLIP, 'flip')
+                state = 0
+            elif state == 49:
+                if self.match_char_and_advance('r'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 50)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 50:
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 51          # In docs, this is delim0
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 51:
+                self.emit_token(tokens, TT_FOR, 'for')
+                state = 0
+            elif state == 52:
+                if self.match_char_and_advance('l'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 53)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 53:
+                if self.match_char_and_advance('l'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 54)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 54:
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 55          # In docs, this is dt_delim
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 55:
+                self.emit_token(tokens, TT_FULL, 'full')
+                state = 0
+            elif state == 56:
+                if self.match_char_and_advance('u'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 57)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 57:
+                if self.match_char_and_advance('n'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 58)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 58:
+                if self.match_char_and_advance('g'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 59)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 59:
+                if self.match_char_and_advance('r'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 60)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 60:
+                if self.match_char_and_advance('y'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 61)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 61:
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 62
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 62:
+                self.emit_token(tokens, TT_HUNGRY, 'hungry')
+                state = 0
+            elif state == 63:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 64)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 64:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 65)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 65:
+                if self.match_char_and_advance('p'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 66)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 66:
+                if self.match_char_and_advance('m'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 67)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 67:
+                if self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 68)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 68:
+                if self.match_char_and_advance('x'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 69)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 69:
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 70          # In docs, this is delim2
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 70:
+                self.emit_token(tokens, TT_KEEPMIX, 'keepmix')
+                state = 0
+            elif state == 71:
+                if self.match_char_and_advance('a'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 72)
+                elif self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 76)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 72:
+                if self.match_char_and_advance('k'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 73)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 73:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 74)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 74:
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 75          # In docs, this is delim0
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 75:
+                self.emit_token(tokens, TT_MAKE, 'make')
+                state = 0
+            elif state == 76:
+                if self.match_char_and_advance('x'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 77)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 77:
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 78          # In docs, this is delim2
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 78:
+                self.emit_token(tokens, TT_MIX, 'mix')
+                state = 0
+            elif state == 79:
+                if self.match_char_and_advance('a'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 80)
+                elif self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 85)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 80:
+                if self.match_char_and_advance('s'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 81)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 81:
+                if self.match_char_and_advance('t'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 82)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 82:
+                if self.match_char_and_advance('a'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 83)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 83:
+                if self.check_delimiter(DT_DELIM):         
+                    state = 84
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 84:
+                self.emit_token(tokens, TT_PASTA, 'pasta')
+                state = 0
+            elif state == 85:
+                if self.match_char_and_advance('n'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 86)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 86:
+                if self.match_char_and_advance('c'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 87)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 87:
+                if self.match_char_and_advance('h'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 88)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 88:
+                if self.check_delimiter(DT_DELIM):         
+                    state = 89
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 89:
+                self.emit_token(tokens, TT_PINCH, 'pinch')
+                state = 0
+            elif state == 90:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 91)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 91:
+                if self.match_char_and_advance('c'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 92)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 92:
+                if self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 93)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 93:
+                if self.match_char_and_advance('p'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 94)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 94:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 95)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 95:
+                if self.check_delimiter(DT_DELIM):         
+                    state = 96
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 96:
+                self.emit_token(tokens, TT_RECIPE, 'recipe')
+                state = 0
+            elif state == 97:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 98)
+                elif self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 103)
+                elif self.match_char_and_advance('k'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 109)
+                elif self.match_char_and_advance('p'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 113)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 98:
+                if self.match_char_and_advance('r'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 99)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 99:
+                if self.match_char_and_advance('v'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 100)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 100:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 101)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 101:
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 102         # In docs, this is delim0
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 102:
+                self.emit_token(tokens, TT_SERVE, 'serve')
+                state = 0
+            elif state == 103:
+                if self.match_char_and_advance('m'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 104)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 104:
+                if self.match_char_and_advance('m'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 105)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 105:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 106)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 106:
+                if self.match_char_and_advance('r'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 107)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 107:
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 108         # In docs, this is delim0
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 108:
+                self.emit_token(tokens, TT_SIMMER, 'simmer')
+                state = 0
+            elif state == 109:
+                if self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 110)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 110:
+                if self.match_char_and_advance('m'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 111)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 111:
+                if self.check_delimiter(DT_DELIM):         
+                    state = 112
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 112:
+                self.emit_token(tokens, TT_SKIM, 'skim')
+                state = 0
+            elif state == 113:
+                if self.match_char_and_advance('i'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 114)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 114:
+                if self.match_char_and_advance('t'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 115)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 115:
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 116
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 116:
+                self.emit_token(tokens, TT_SPIT, 'spit')
+                state = 0
+            elif state == 117:
+                if self.match_char_and_advance('a'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 118)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 118:
+                if self.match_char_and_advance('k'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 119)
+                elif self.match_char_and_advance('s'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 125)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 119:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 120)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 120:
+                if self.match_char_and_advance('o'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 121)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 121:
+                if self.match_char_and_advance('u'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 122)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 122:
+                if self.match_char_and_advance('t'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 123)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 123:
+                if self.check_delimiter(WHITE_SPACE):      
+                    state = 124
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 124:
+                self.emit_token(tokens, TT_TAKEOUT, 'takeout')
+                state = 0
+            elif state == 125:
+                if self.match_char_and_advance('t'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 126)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 126:
+                if self.match_char_and_advance('e'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 127)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 127:
+                if self.check_delimiter(SPACE_DELIM):      
+                    state = 128         # In docs, this is delim0
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 128:
+                self.emit_token(tokens, TT_TASTE, 'taste')
+                state = 0
+            elif state == 129:
+                if self.match_char_and_advance('u'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 130)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 130:
+                if self.match_char_and_advance('m'):       
+                    str_buffer, state = self.reserve_and_transition(str_buffer, 131)
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 131:
+                if self.check_delimiter(BOOL_DELIM):       
+                    state = 132
+                else:                                           
+                    identifier, state = self.fallback_to_identifier(str_start_, 231)
+            elif state == 132:
+                self.emit_token(tokens, TT_YUM, 'yum')
+                state = 0
+            # in original lexer, they skipped 133
+            # in original lexer, they skipped 135
+            # in original lexer, they skipped 137
+            elif state == 139:
+                if      self.check_delimiter(DELIM_3):          state = 140         # Check DELIM_3 delimiters
+                elif    self.match_char_and_advance('-'):       state = 141
+                elif    self.match_char_and_advance('='):       state = 143
+                else:
+                    '''Captures example: a -: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                    
-                case 180:
-                    if c == '&':
-                        state = 181
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 181:
-                    if c in self.delim3:
-                        state = 182
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 182:
-                    tokens.append((lexeme, "&&",line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 140:
+                self.emit_token(tokens, TT_MINUS, '-')
+                state = 0
+            elif state == 141:
+                if      self.check_delimiter(DELIM_4):          state = 142
+                else:
+                    '''Captures example: a--! or --!a'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                
-                case 183:
-                    if c in self.delim3:
-                        state = 184
-                        if c is not None:
-                            self.stepBack()
-                    elif c == '=':
-                        state = 185
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                    
-                case 184:
-                    tokens.append((lexeme, "%",line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 142:
+                self.emit_token(tokens, TT_DECREMENT, '--')
+                state = 0
+            elif state == 143:
+                if      self.check_delimiter(DELIM_5):          state = 144         # Check DELIM_5 delimiters
+                else:
+                    '''Captures example: a -=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                    
-                case 185:
-                    if c in self.delim5:
-                        state = 186
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 186:
-                    tokens.append((lexeme, "%=",line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 144:
+                self.emit_token(tokens, TT_MINUS_EQUAL, '-=')
+                state = 0
+            elif state == 145:
+                if      self.check_delimiter(DELIM_6):          state = 146
+                else:
+                    '''Captures example: a,: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                    
-                case 187:
-                    if c in self.delim1:
-                        state = 188
-                        if c is not None:
-                            self.stepBack()
-                    elif c == '+':
-                        state = 189
-                        lexeme += c
-                    elif c == '=':
-                        state = 191
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 188:
-                    tokens.append((lexeme, "+",line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 146:
+                self.emit_token(tokens, TT_COMMA, ',')
+                state = 0
+            elif state == 147:
+                if      self.check_delimiter(OPARAN_DELIM):     state = 148         # In docs, this is delim7
+                elif    self.match_char_and_advance('!'):       state = 149
+                elif    self.match_char_and_advance('='):       state = 151
+                else:
+                    '''Captures example: !:(a)'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}', expected '!' or '('")
                     state = 0
-                    
-                case 189:
-                    if c in self.delim4:
-                        state = 190
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 190:
-                    tokens.append((lexeme, "++",line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 148:
+                self.emit_token(tokens, TT_NEGATE_OP, '!')
+                state = 0
+            elif state == 149:
+                if      self.check_delimiter(DELIM_3):          state = 150
+                else:
+                    '''Captures example: !!:(a)'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                    
-                case 191:
-                    if c in self.delim5:
-                        state = 192
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 192:
-                    tokens.append((lexeme, "+=",line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 150:
+                self.emit_token(tokens, TT_LOGICAL_NOT, '!!')
+                state = 0
+            elif state == 151:
+                if      self.check_delimiter(DELIM_8):          state = 152
+                else:
+                    '''Captures example: a !=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                
-                case 193:
-                    if c in self.delim3:
-                        state = 194
-                        if c is not None:
-                            self.stepBack()
-                    elif c == '=':
-                        state = 195
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 194:
-                    tokens.append((lexeme, "<",line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 152:
+                self.emit_token(tokens, TT_NOT_EQUAL, '!=')
+                state = 0
+            elif state == 153:
+                if      self.match_char_and_advance('?'):       state = 154
+                else:
+                    '''Captures example: a ?: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}', expected '?'")
                     state = 0
-                    
-                case 195:
-                    if c in self.delim5:
-                        state = 196
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 196:
-                    tokens.append((lexeme, "<=",line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 154:
+                if      self.check_delimiter(DELIM_3):          state = 155
+                else:
+                    '''Captures example: a ??: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                    
-                case 197:
-                    if c in self.delim8:
-                        state = 198
-                        if c is not None:
-                            self.stepBack()
-                    elif c == '=':
-                        state = 199
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 198:
-                    tokens.append((lexeme, "=",line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 155:
+                self.emit_token(tokens, TT_LOGICAL_OR, '??')
+                state = 0
+            elif state == 156:
+                if      self.check_delimiter(DELIM_12):         state = 157
+                else:
+                    '''Captures example: (:a < b)'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                    
-                case 199:
-                    if c in self.delim8:
-                        state = 200
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 200:
-                    tokens.append((lexeme, "==",line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 157:
+                self.emit_token(tokens, TT_OPARAN, '(')
+                state = 0
+            elif state == 158:
+                if      self.check_delimiter(DELIM_13):         state = 159
+                else:
+                    '''Captures example: (a < b)'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                    
-                case 201:
-                    if c in self.delim3:
-                        state = 202
-                        if c is not None:
-                            self.stepBack()
-                    elif c == '=':
-                        state = 203
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 202:
-                    tokens.append((lexeme, ">",line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 159:
+                self.emit_token(tokens, TT_CPARAN, ')')
+                state = 0
+            elif state == 160:
+                if      self.check_delimiter(DELIM_14):         state = 161
+                else:
+                    '''Captures example: a[:4]'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                    
-                case 203:
-                    if c in self.delim3:
-                        state = 204
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 204:
-                    tokens.append((lexeme, ">=",line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 161:
+                self.emit_token(tokens, TT_OBRACE, '[')
+                state = 0
+            elif state == 162:
+                if      self.check_delimiter(DELIM_15):         state = 163
+                else:
+                    '''Captures example: a[4]:'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                    
-                    
-                case 205:
-                    if c in self.asciistr:
-                        state = 205
-                        lexeme += c
-                    elif c == '"':
-                        state = 206
-                        lexeme += c
-                    elif c == '“':
-                        state = 206
-                        lexeme += c
-                    elif c == '”':
-                        state = 206
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 206:
-                    if c in self.pasta_delim:
-                        state = 207
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 207:
-                    tokens.append((lexeme, 'pastaliterals',line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 163:
+                self.emit_token(tokens, TT_CBRACE, ']')
+                state = 0
+            elif state == 164:
+                if      self.check_delimiter(DELIM_16):         state = 165
+                else:
+                    '''Captures example: {:'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-
-
-                #pinch and skim
-                case 208:
-                    if c in self.all_num:
-                        state = 209
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                case 209:
-                    if c in self.all_num:
-                        state = 210
-                        lexeme += c
-                    elif c == '.':
-                        state = 219
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 218
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                case 210:
-                    if c in self.all_num:
-                        state = 211
-                        lexeme += c
-                    elif c == '.':
-                        state = 219
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 218
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                case 211:
-                    if c in self.all_num:
-                        state = 212
-                        lexeme += c
-                    elif c == '.':
-                        state = 219
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 218
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                case 212:
-                    if c in self.all_num:
-                        state = 213
-                        lexeme += c
-                    elif c == '.':
-                        state = 219
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 218
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0       
-                case 213:
-                    if c in self.all_num:
-                        state = 214
-                        lexeme += c
-                    elif c == '.':
-                        state = 219
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 218
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0    
-                case 214:
-                    if c in self.all_num:
-                        state = 215
-                        lexeme += c
-                    elif c == '.':
-                        state = 219
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 218
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0    
-                case 215:
-                    if c in self.all_num:
-                        state = 216
-                        lexeme += c
-                    elif c == '.':
-                        state = 219
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 218
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0    
-                case 216:
-                    if c in self.all_num:
-                        state = 217
-                        lexeme += c
-                    elif c == '.':
-                        state = 219
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 218
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                case 217:
-                    if c == '.':
-                        state = 219
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 218
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0  
-                case 218:
-                    tokens.append((lexeme, "pinchliterals",line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 165:
+                self.emit_token(tokens, TT_OBRACK, '{')
+                state = 0
+            elif state == 166:
+                if      self.check_delimiter(DELIM_17):         state = 167
+                else:
+                    '''Captures example: }:'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                case 219:
-                    if c in self.all_num:
-                        state = 220
-                        lexeme += c
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0      
-                case 220:
-                    if c in self.all_num:
-                        state = 221
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 229
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0 
-                case 221:
-                    if c in self.all_num:
-                        state = 222
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 229
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                case 222:
-                    if c in self.all_num:
-                        state = 223
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 229
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0 
-                case 223:
-                    if c in self.all_num:
-                        state = 224
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 229
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0   
-                case 224:
-                    if c in self.all_num:
-                        state = 225
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 229
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                case 225:
-                    if c in self.all_num:
-                        state = 226
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 229
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                case 226:
-                    if c in self.all_num:
-                        state = 227
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 229
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                case 227:
-                    if c in self.all_num:
-                        state = 228
-                        lexeme += c
-                    elif c in self.num_delim:
-                        state = 229
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                case 228:
-                    if c in self.num_delim:
-                        state = 229
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                case 229:
-                    tokens.append((lexeme, "skimliterals",line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 167:
+                self.emit_token(tokens, TT_CBRACK, '}')
+                state = 0
+            elif state == 168:
+                if      self.check_delimiter(DELIM_3):          state = 169         # Set to similar delim as -
+                elif    self.match_char_and_advance('='):       state = 170         # This is *=, there is no mention in docs transition diagram
+                else:
+                    '''Captures example: a *: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-
-                #Identifier
-                case 230:
-                    if c and (c.isalpha() or c.isdigit() or c == '_'):
-                        lexeme += c
-                        state = 232                        
-                    elif c in self.id_delim:
-                        state = 231
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: Identifier '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                        
-                case 231:
-                    self.identifier_count += 1  # Increment counter
-                    token_name = f"identifier{self.identifier_count}"
-                    tokens.append((lexeme, token_name,line))  # Use the numbered token
-                    if c is not None:
-                        self.stepBack()
+            elif state == 169:
+                self.emit_token(tokens, TT_MULTIPLY, '*')
+                state = 0
+            elif state == 170:
+                if      self.check_delimiter(DELIM_5):          state = 171         # Set to similar delim as -=
+                else:
+                    '''Captures example: a *=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                    
-                case 232:
-                    if c and (c.isalpha() or c.isdigit() or c == '_'):
-                        lexeme += c
-                        
-                        if len(lexeme) > 32:
-                            self.errors.append(f"Line {line}: id '{lexeme}' exceeds 32 characters.")
-                            state = 0
-
-                    elif c in self.id_delim:
-                        state = 233
-                        if c is not None:
-                            self.stepBack()
-                    
-                    else:
-                        self.errors.append(f"Line {line}: Id '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                
-                case 233:
-                    self.identifier_count += 1  # Increment counter
-                    token_name = f"identifier{self.identifier_count}"
-                    tokens.append((lexeme, token_name,line))  # Use the numbered token
-                    if c is not None:
-                        self.stepBack()
-                    state = 0 
-                    
-                case 234:
-                    if c is None or c in self.whitespace:
-                        state = 235
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: Symbol '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                case 235:
-                    tokens.append((lexeme, ";",line))
-                    if c is not None:
-                            self.stepBack()
+            elif state == 171:
+                self.emit_token(tokens, TT_MULTIPLY_EQUAL, '*=')
+                state = 0
+            elif state == 172:
+                if      self.check_delimiter(DELIM_3):          state = 173         # In docs, delimiter is single comment but it should be division so changed it to DELIM_3, will test
+                elif    self.match_char_and_advance('='):       state = 174         # In docs, there is no /= in transition diagram but they have the operation in practice
+                elif    self.match_char_and_advance('/'):       state = 176         # This is for singleline comment
+                elif    self.match_char_and_advance('-'):       state = 178         # This is for multiline comment
+                else:
+                    '''Captures example: a /: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                case 236:
-                    if c is None or c in self.whitespace:
-                        state = 237
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: Symbol '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-                case 237:
-                    tokens.append((lexeme, ":",line))
-                    if c is not None:
-                            self.stepBack()
+            elif state == 173:
+                self.emit_token(tokens, TT_DIVIDE, '/')
+                state = 0
+            elif state == 174:
+                if      self.check_delimiter(DELIM_5):          state = 175
+                else:
+                    '''Captures example: a /=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-                case 238:
-                    if c in self.delim5:
-                        state = 239
-                        if c is not None:
-                            self.stepBack()
-                    else:
-                        self.errors.append(f"Line {line}: '{lexeme}' Invalid Delimiter ' {repr(c)} '.")
-                        state = 0
-
-                case 239:
-                    tokens.append((lexeme, "/=", line))
-                    if c is not None:
-                        self.stepBack()
+            elif state == 175:
+                self.emit_token(tokens, TT_DIVIDE_EQUAL, '/=')
+                state = 0
+            elif state == 176:
+                if     (self.current_character != '\n' and 
+                        self.current_character != EOF):         self.read_next_character()
+                else:                                           state = 177
+            elif state == 177:
+                self.read_next_character()
+                state = 0
+            # !REVISIT: Handle unterminated multi-line comment lexical error
+            elif state == 178:
+                if      self.match_char_and_advance('-'):       state = 179
+                elif self.current_character == EOF:
+                    self.display_lexical_error(comment_start_pos, self.pos.copy(), errors, "Unterminated multi-line comment")
+                    state = 0       
+                else:                                           self.read_next_character()
+            elif state == 179:
+                if      self.match_char_and_advance('/'):       state = 180
+                elif self.current_character == EOF:
+                    self.display_lexical_error(comment_start_pos, self.pos.copy(), errors, "Unterminated multi-line comment")
                     state = 0
-                    
-        return tokens
-
-
-    def display_tokens(self, tokens):
-            print(f"{'Lexeme'.ljust(40)}{'Token'.ljust(20)}")
-            print("-" * 60)
-            for lexeme, token in tokens:
-                print(f"{lexeme.ljust(40)}{token.ljust(20)}")
-                print("-" * 60)
-
-
-    def display_errors(self):
-        if self.errors:
-            print("\nLexical Errors:\n")
-            for error in self.errors:
-                    print(error)
-    
-def make_string_fixed(self):
-    id_str = ""
-    c = self.nextChar()
-    start_line = self.line_number
-    escape_character = False
-    
-    while c is not None: 
-        if escape_character:
-            # Properly handle escape sequences
-            if c == 'n':
-                id_str += '\n'  # Convert \n to actual newline character
-            elif c == 't':
-                id_str += '\t'  # Convert \t to actual tab character
-            elif c in ['"', '\\']: 
-                id_str += c
-            else:
-                id_str += '\\' + c  # Keep unrecognized escape sequences as is
-            escape_character = False
-        elif c == '\\':
-            escape_character = True
-        elif c == '"':
-            c = self.nextChar()
-            if c is not None and c not in self.ascii_delim:
-                self.errors.append(f"Line {self.line_number}: Invalid delimiter '{c}' after string")
-                return []
-            else:
+                else:                                           self.read_next_character()
+            elif state == 180:
+                self.read_next_character()
+                state = 0
+            elif state == 181:
+                if      self.match_char_and_advance('&'):       state = 182
+                else:                                           
+                    '''Captures example: a &: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}', expected '&'")
+                    state = 0
+            elif state == 182:
+                if      self.check_delimiter(DELIM_3):          state = 183
+                else:
+                    '''Captures example: a &&: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
+            elif state == 183:
+                self.emit_token(tokens, TT_LOGICAL_AND, '&&')
+                state = 0
+            elif state == 184:
+                if      self.check_delimiter(DELIM_3):          state = 185
+                elif    self.match_char_and_advance('='):       state = 186
+                else:
+                    '''Captures example: a %: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
+            elif state == 185:
+                self.emit_token(tokens, TT_MODULO, '%')
+                state = 0
+            elif state == 186:
+                if      self.check_delimiter(DELIM_5):          state = 187
+                else:
+                    '''Captures example: a %=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
+            elif state == 187:
+                self.emit_token(tokens, TT_MODULO_EQUAL, '%=')
+                state = 0
+            elif state == 188:
+                if      self.check_delimiter(DELIM_1):          state = 189
+                elif    self.match_char_and_advance('+'):       state = 190
+                elif    self.match_char_and_advance('='):       state = 192
+                else:
+                    '''Captures example: a +: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
+            elif state == 189:
+                self.emit_token(tokens, TT_PLUS, '+')
+                state = 0
+            elif state == 190:
+                if      self.check_delimiter(DELIM_4):          state = 191
+                else:
+                    '''Captures example: a++! or ++!a'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
+            elif state == 191:
+                self.emit_token(tokens, TT_INCREMENT, '++')
+                state = 0
+            elif state == 192:
+                if      self.check_delimiter(DELIM_5):          state = 193
+                else:
+                    '''Captures example: a +=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
+            elif state == 193:
+                self.emit_token(tokens, TT_PLUS_EQUAL, '+=')
+                state = 0
+            elif state == 194:
+                if      self.check_delimiter(DELIM_3):          state = 195
+                elif    self.match_char_and_advance('='):       state = 196
+                else:
+                    '''Captures example: a <: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
+            elif state == 195:
+                self.emit_token(tokens, TT_LESS_THAN, '<')
+                state = 0
+            elif state == 196:
+                if      self.check_delimiter(DELIM_5):          state = 197
+                else:                                           
+                    '''Captures example: a <=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
+            elif state == 197:
+                self.emit_token(tokens, TT_LESS_THAN_EQUAL, '<=')
+                state = 0
+            elif state == 198:
+                if      self.check_delimiter(DELIM_8):          state = 199
+                elif    self.match_char_and_advance('='):       state = 200
+                else:
+                    '''Captures example: a =! b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
+            elif state == 199:
+                self.emit_token(tokens, TT_ASSIGN, '=')
+                state = 0
+            elif state == 200:
+                if      self.check_delimiter(DELIM_8):          state = 201
+                else:
+                    '''Captures example: a ==> b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
+            elif state == 201:
+                self.emit_token(tokens, TT_EQUAL_TO, '==')
+                state = 0
+            elif state == 202:
+                if      self.check_delimiter(DELIM_3):          state = 203
+                elif    self.match_char_and_advance('='):       state = 204
+                else:                                           
+                    '''Captures example: a >: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
+            elif state == 203:
+                self.emit_token(tokens, TT_GREATER_THAN, '>')
+                state = 0
+            elif state == 204:
+                if      self.check_delimiter(DELIM_5):          state = 205         # In docs, this is delim3
+                else:
+                    '''Captures example: a >=: b'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
+            elif state == 205:
+                self.emit_token(tokens, TT_GREATER_THAN_EQUAL, '>=')
+                state = 0
+            elif state == 206:
+                MAX_PASTA_LITERAL_LENGTH = 256
+                if (self.current_character not in {EOF, '\n', '"'} and 
+                    len(pasta_literal) < MAX_PASTA_LITERAL_LENGTH):
+                    pasta_literal, state = self.process_string_literal(pasta_literal, 206)
+                elif self.match_char_and_advance('"'):
+                    state = 207
+                elif self.current_character in {EOF, '\n'}:
+                    '''Captures example: "Hello World;'''
+                    self.display_lexical_error(str_start_.copy(), self.pos.copy(), errors, f"Unterminated pastaliteral")
+                    state = 0
+                else:
+                    '''Captures pasta literal that exceeds 256 characters'''
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Pastaliteral exceeds {MAX_IDENTIFIER_LENGTH} characters")
+                    state = 0
+            elif state == 207:
+                if      self.check_delimiter(PASTA_DELIM):      state = 208
+                else:
+                    '''Captures example: "Hello World"-'''
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid delimiter '{invalid_character}', expected ',' or ';'")
+                    state = 0
+            elif state == 208:
+                self.emit_token(tokens, TT_PASTA_LITERAL, f'"{pasta_literal}"')
+                state = 0
+            elif state == 209:
+                number_literal = "-" if is_negative else ""
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 210
+                else:                                           
+                    '''Captures example: ~ without number after'''
+                    self.display_lexical_error(negative_sign_pos, self.pos, errors, f"Expected digit after '~'")
+                    state = 0
+            elif state == 210:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 211
+                else:                                           state = 218
+            elif state == 211:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 212
+                else:                                           state = 218
+            elif state == 212:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 213
+                else:                                           state = 218
+            elif state == 213:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 214
+                else:                                           state = 218
+            elif state == 214:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 215
+                else:                                           state = 218
+            elif state == 215:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 216
+                else:                                           state = 218
+            elif state == 216:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 217
+                else:                                           state = 218
+            elif state == 217:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 218
+                else:                                           state = 218
+            elif state == 218:
+                if      self.check_delimiter(NUM_DELIM):        state = 219
+                elif    self.current_character == '.':
+                    decimal_pos = self.pos.copy()
+                    self.read_next_character()      
+                    state = 220
+                elif not self.current_character.isdigit():
+                    '''Captures example: 123a'''
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid suffix '{invalid_character}' on pinchliteral")
+                    state = 0
+                else:
+                    '''Captures example: 1234567891'''              
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Pinchliteral exceeds 9 digits")
+                    state = 0
+            elif state == 219:
+                self.emit_token(tokens, TT_PINCH_LITERAL, number_literal)
+                state = 0
+            elif state == 220:
+                number_literal += '.'
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 221
+                else:                                           state = 229
+            elif state == 221:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 222
+                else:                                           state = 229
+            elif state == 222:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 223
+                else:                                           state = 229
+            elif state == 223:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 224
+                else:                                           state = 229
+            elif state == 224:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 225
+                else:                                           state = 229
+            elif state == 225:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 226
+                else:                                           state = 229
+            elif state == 226:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 227
+                else:                                           state = 229
+            elif state == 227:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 228
+                else:                                           state = 229
+            elif state == 228:
+                is_digit, number_literal = self.append_digit_and_advance(number_literal)
+                if      is_digit:                               state = 229
+                else:                                           state = 229
+            elif state == 229:
+                if number_literal.endswith('.'):
+                    '''Captures example: 123. without number after'''
+                    self.display_lexical_error(decimal_pos, self.pos, errors, f"Expected digit after '.'")
+                    state = 0
+                elif self.check_delimiter(NUM_DELIM):        
+                    state = 230
+                elif self.current_character == '.':
+                    '''Captures example: 123..1 or 123.1.1'''
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Expected single '.' in skimliteral")
+                    state = 0
+                elif not self.current_character.isdigit():
+                    '''Captures example: 123.a'''
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid suffix '{invalid_character}' on skimliteral")
+                    state = 0
+                else:
+                    '''Captures example: 0.1234567891'''
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Skimliteral exceeds 9 digits")
+                    state = 0
+            elif state == 230:
+                self.emit_token(tokens, TT_SKIM_LITERAL, number_literal)
+                state = 0
+            elif state == 231:
+                MAX_IDENTIFIER_LENGTH = 32
+                if (self.current_character in UNDER_ALPHA_NUM and 
+                    len(identifier) < MAX_IDENTIFIER_LENGTH):
+                    identifier += self.current_character
+                    self.read_next_character()
+                    state = 231                                                         # Stay in the same state to collect more characters
+                elif self.check_delimiter(ID_DELIM):
+                    state = 232
+                elif self.current_character not in UNDER_ALPHA_NUM:
+                    '''Captures example: my_var!'''     
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                    state = 0
+                else:
+                    '''Captures example: variableNameThatExceeds32Characters'''
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Identifier exceeds {MAX_IDENTIFIER_LENGTH} characters")
+                    state = 0
+            elif state == 232:
                 self.identifier_count += 1
-                token_name = f"string{self.identifier_count}"
-                if c is not None:
-                    self.stepBack()
-                return [(id_str, token_name, start_line)]
-        elif c == '\n':
-            self.errors.append(f"Line {start_line}: String not properly closed with double quotes")
-            return []
-        else:
-            id_str += c
-        c = self.nextChar()
-    
-    self.errors.append(f"Line {start_line}: String not properly closed with double quotes")
-    return []
+                token_name = f"{TT_IDENTIFIER}{self.identifier_count}"
+                self.emit_token(tokens, token_name, identifier)
+                state = 0
+            elif state == 235:
+                if      self.check_delimiter(WHITE_SPACE):      state = 236
+                else:                                           
+                    '''Captures example: skim a = 3.5;g'''
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid delimiter '{invalid_character}', expected ' ', '\\t', or '\\n'")
+                    state = 0
+            elif state == 236:
+                self.emit_token(tokens, TT_SEMI_COLON, ';')
+                state = 0
+            elif state == 237:
+                if      self.check_delimiter(WHITE_SPACE):      state = 238
+                else:
+                    '''Captures example: case 3:g'''                                           
+                    invalid_character = self.current_character
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid delimiter '{invalid_character}', expected ' ', '\\t', or '\\n'")
+                    state = 0
+            elif state == 238:
+                self.emit_token(tokens, TT_COLON, ':')
+                state = 0
 
-# Add the fixed method to the class
-LexicalAnalyzer.make_string = make_string_fixed
+            # Convert errors to string format here
+            error_strings = [error.as_string() for error in errors]
 
+        # Debugging the token
+        print(f"Tokens produced: {tokens}")
 
-if __name__ == "__main__":
-    try:
-        with open("src/lexical/program", "r") as file:
-            code = file.read()
-            code = code.replace("    ", "\t")
-    except FileNotFoundError:
-        print("Error: The file 'program' was not found in the current directory.")
-        exit(1)
-
-    analyzer = LexicalAnalyzer()
-    tokens = analyzer.tokenize(code)
-
-    # Fixed to handle 3-tuple tokens
-    analyzer.display_tokens(tokens)
-    analyzer.display_errors()
-    print("\nEnd of program analysis.\n")
+        return tokens, error_strings
