@@ -88,7 +88,7 @@ class SymbolTable:
 #---------------------------------------------------------------------
 class SemanticAnalyzer:
     """
-    this fucking thing was never used, idk how you could fuck this up so badly
+    this   thing was never used, idk how you could   this up so badly
 
     def visit_return_statement(self, node):
         if not node.children or len(node.children) < 1:
@@ -182,10 +182,10 @@ class SemanticAnalyzer:
                     return None
 
             if node.value == "spit":
-                # the spit on the main function a terminal, so why tf are you trying to access it through terminal checking, fucking bitch
+                # the spit on the main function a terminal, so why tf are you trying to access it through terminal checking,   bitch
                 return_val = parent.children[12]
                 """
-                    idk what y'll fucking want, i'll just add those 3 types of return
+                    idk what y'll   want, i'll just add those 3 types of return
                 """
                 if not int(return_val.value) in [0,1]:
                     self.errors.append(SemanticError(
@@ -691,7 +691,7 @@ class SemanticAnalyzer:
             # Get array dimension
             dimension_node = node.children[4]
 
-            #this part if fucking unnecessary, because the CFG already captures this shi, fuckihhh biiihh
+            #this part if   unnecessary, because the CFG already captures this shi,  ihhh biiihh
             try:
                 dimension = int(dimension_node.value)
             except (ValueError, AttributeError) as e:
@@ -720,7 +720,7 @@ class SemanticAnalyzer:
                             identifier=var_name
                         ))
 
-                    #append to the fucking value array ashjknddashjkdashjkasdhjkhjlkdas
+                    #append to the   value array ashjknddashjkdashjkasdhjkhjlkdas
                     values.append(first_literal_node.value)
                     element_ctr += 1
 
@@ -738,13 +738,13 @@ class SemanticAnalyzer:
                             ))
                             break
 
-                        # append to the fucking value array ashjknddashjkdashjkasdhjkhjlkdas
+                        # append to the   value array ashjknddashjkdashjkasdhjkhjlkdas
                         values.append(literal_node.value)
                         element_ctr += 1
                         element_tail = element_tail.children[2]
 
 
-                    # THIS FUCKING CODE IS RETARDATION, ISTG
+                    # THIS   CODE IS RETARDATION, ISTG
                     # for child in elements_node.children:
                     #     if hasattr(child, 'value') and child.value == '<literals>':
                     #         # Found the literals node, check its children
@@ -918,7 +918,7 @@ class SemanticAnalyzer:
 
             """
                 need to not make this run
-                so i fucking turned commented it for now
+                so i   turned commented it for now
                 will just add a checking later
             """
 
@@ -1158,7 +1158,7 @@ class SemanticAnalyzer:
         # needs to process parameters
         parameter_node = symbol.parameters
         while parameter_node.children and argument_node.children:
-            # process the fucking parameter
+            # process the   parameter
             if parameter_node.children[0].value == ',':
                 data_type = parameter_node.children[1].children[0].value
                 data_name = parameter_node.children[2].value
@@ -1167,7 +1167,7 @@ class SemanticAnalyzer:
                 data_type = parameter_node.children[0].children[0].value
                 data_name = parameter_node.children[1].value
                 parameter_node = parameter_node.children[2]
-            # assign the fucking argument to the fucking parameter
+            # assign the   argument to the   parameter
 
             if argument_node.children[0].value == ',':
                 data_val = self._evaluate_expression(argument_node.children[1])
@@ -1200,7 +1200,7 @@ class SemanticAnalyzer:
             ))
             return None
 
-        # did it this way so that i don't need to add the spit on the visit_statement, fuck that
+        # did it this way so that i don't need to add the spit on the visit_statement,   that
         self.generic_visit(symbol.value[0])
         self.generic_visit(symbol.value[1])
 
@@ -1263,7 +1263,7 @@ class SemanticAnalyzer:
         # Process the initial value3
         if hasattr(arg_node, 'children') and arg_node.children:
             initial_node = arg_node.children[0]
-            #are you fucking retarded????? why would you fucking include the ID checking here ???? it doesn't have childrennnnn????????????
+            #are you   retarded????? why would you   include the ID checking here ???? it doesn't have childrennnnn????????????
             if hasattr(initial_node, 'children') and initial_node.children:
                 first_value = initial_node.children[0]
                 print(f"\nProcessing initial value3")
@@ -1275,11 +1275,11 @@ class SemanticAnalyzer:
                         result = first_value.value.strip('"')
                         print(f"Found string literal: {result}")
             elif initial_node.node_type == 'id':
-                #it fucking works now
+                #it   works now
                 tail_node = arg_node.children[1]
 
 
-                #check if the symbol exist, for fucking error checking alnhjsdljkasldhjkasas
+                #check if the symbol exist, for   error checking alnhjsdljkasldhjkasas
                 if not self.lookup_symbol(initial_node.value) and not initial_node.value == "len":
                     line_num = getattr(node, 'line_number', None)
                     self.errors.append(SemanticError(
@@ -1290,7 +1290,7 @@ class SemanticAnalyzer:
                     ))
                     return
 
-                #NEED TO FUCKING CONFIRM IF ARRAYS AND FUNCTIONS CAN BE CALLED INSIDE THE DAMN SERVE
+                #NEED TO   CONFIRM IF ARRAYS AND FUNCTIONS CAN BE CALLED INSIDE THE DAMN SERVE
                 if tail_node.children:
                     if tail_node.children[0].value == "[":
                         if initial_node.value == "len":
@@ -1302,7 +1302,7 @@ class SemanticAnalyzer:
                                 identifier=initial_node.value
                             ))
                             return
-                        #it's a fucking array <3 fuck this shi
+                        #it's a   array <3   this shi
                         index_value = int(self._evaluate_expression(tail_node.children[1]))
                         symbol = self.lookup_symbol(initial_node.value)
                         listed_value = list(symbol.get_value())
@@ -1368,10 +1368,10 @@ class SemanticAnalyzer:
                             else:
                                 print("Hello World!")
                         elif next_value.node_type == 'id':
-                            # it fucking works now
+                            # it   works now
                             tail_node = next_value_node.children[1]
 
-                            # check if the symbol exist, for fucking error checking alnhjsdljkasldhjkasas
+                            # check if the symbol exist, for   error checking alnhjsdljkasldhjkasas
                             if not self.lookup_symbol(next_value.value):
                                 line_num = getattr(node, 'line_number', None)
                                 self.errors.append(SemanticError(
@@ -1381,10 +1381,10 @@ class SemanticAnalyzer:
                                     identifier=next_value.value
                                 ))
                                 return
-                            # NEED TO FUCKING CONFIRM IF ARRAYS AND FUNCTIONS CAN BE CALLED INSIDE THE DAMN SERVE
+                            # NEED TO   CONFIRM IF ARRAYS AND FUNCTIONS CAN BE CALLED INSIDE THE DAMN SERVE
                             if tail_node.children:
                                 if tail_node.children[0].value == "[":
-                                    # it's a fucking array <3 fuck this shi
+                                    # it's a   array <3   this shi
                                     index_value = int(self._evaluate_expression(tail_node.children[1]))
                                     symbol = self.lookup_symbol(next_value.value)
                                     listed_value = list(symbol.get_value())
@@ -1455,7 +1455,7 @@ class SemanticAnalyzer:
             print("Statement node has insufficient children")
             return
 
-        # children 2 'cause that shi is the second, second fucking dumbahh
+        # children 2 'cause that shi is the second, second   dumbahh
         arg_node = statement_node.children[2]
         print(f"\nArgument node: {arg_node.value if hasattr(arg_node, 'value') else 'No value'}")
         print(f"Argument node type: {arg_node.node_type if hasattr(arg_node, 'node_type') else 'No type'}")
@@ -1625,7 +1625,7 @@ class SemanticAnalyzer:
         self.symbol_tables.pop()
         self.current_scope = old_scope
         
-        # Continue with the generic visit to process child nodes???????? ARE YOU FUCKING RETARDED? THIS IS A FUCKING LOOP
+        # Continue with the generic visit to process child nodes???????? ARE YOU   RETARDED? THIS IS A   LOOP
         #self.generic_visit(node)
 
     def visit_conditional_statement(self, node):
@@ -1640,9 +1640,9 @@ class SemanticAnalyzer:
 
     def _handle_taste_condition(self, node):
         """
-            1: check the fucking condition
-            2: execute code block if the fucking condition is true
-            3: check for the fucking conditional_tail
+            1: check the   condition
+            2: execute code block if the   condition is true
+            3: check for the   conditional_tail
         """
 
 
@@ -1667,9 +1667,9 @@ class SemanticAnalyzer:
 
     def _handle_flip_condition(self, node):
         """
-            1: get the fucking base variable
-            2: compare the fucking variable to each cases
-            3: pretty much the fucking same with if-elif-else
+            1: get the   base variable
+            2: compare the   variable to each cases
+            3: pretty much the   same with if-elif-else
         """
 
         variable = node.children[2]
@@ -1691,8 +1691,8 @@ class SemanticAnalyzer:
 
     def _handle_case_tail(self, id_node, node):
         """
-                    1: check the first fucking case and compare
-                    2: if true execute yourself fuck you
+                    1: check the first   case and compare
+                    2: if true execute yourself   you
                     3: if not, check the rest of the cases
                 """
 
@@ -1726,8 +1726,8 @@ class SemanticAnalyzer:
 
     def _handle_conditional_tail(self, node):
         """
-            1: check for the fucking condition
-            2: if there is still some fucking recall this
+            1: check for the   condition
+            2: if there is still some   recall this
             3: if it becomes null, then nothing
         """
         if not node.children:
@@ -1771,9 +1771,9 @@ class SemanticAnalyzer:
 
     def _handle_keepmix_loop(self, node):
         """
-            1: execute the motherfucking code
-            2: check the fucking condition
-            3: loop 1 if the fucking condition is true
+            1: execute the mother  code
+            2: check the   condition
+            3: loop 1 if the   condition is true
         """
         """NEW, uses python while loop"""
 
@@ -1800,10 +1800,10 @@ class SemanticAnalyzer:
 
     def _handle_simmer_loop(self, node):
         """
-            -----fucking loop-----
-            1: check the fucking condition
-            2: execute the fucking code
-            -----fucking loop-----
+            -----  loop-----
+            1: check the   condition
+            2: execute the   code
+            -----  loop-----
         """
         """NEW, just python while loop"""
         condition_node = node.children[2]
@@ -1824,14 +1824,14 @@ class SemanticAnalyzer:
 
     def _handle_for_loop(self, node, loop=False):
         # Expected structure: for ( <assignment> ; <expression> ; <assignment> ) <statement>
-        # general fucking process
+        # general   process
         """
-            1: assign the fucking variables
-            -----fucking loop-----
-            2: check the fucking condition
-            3: execute the fucking code block
+            1: assign the   variables
+            -----  loop-----
+            2: check the   condition
+            3: execute the   code block
             4: increment/decrement
-            -----fucking loop-----
+            -----  loop-----
         """
 
         """NEW, uses python while loop"""
@@ -1932,7 +1932,7 @@ class SemanticAnalyzer:
         #             symbol.set_value(_dvalue)
         #
         # # Check that the condition expression evaluates to a boolean compatible type
-        # # WHY ARE YOU FUCKING CHEKCING THE ID, INSTEAD OF A FUCKING CONDITION!??????? DO YOU EVEN KNOW THE SEQUENCE OF YOUR FUCKING SYMBOLSS!??? PARSE TREEE? AHJJJJJJJJASDJKHSAJKD
+        # # WHY ARE YOU   CHEKCING THE ID, INSTEAD OF A   CONDITION!??????? DO YOU EVEN KNOW THE SEQUENCE OF YOUR   SYMBOLSS!??? PARSE TREEE? AHJJJJJJJJASDJKHSAJKD
         #
         # condition_expr = node.children[7]
         # #condition_type = self.get_condition_type(condition_expr)
@@ -2027,7 +2027,7 @@ class SemanticAnalyzer:
         # For identifier usage in expressions, assume the leaf node value is the identifier name.
         var_name = node.value
         line_num = node.line_number
-        # this shoul have a fucking error handling !!!
+        # this shoul have a   error handling !!!
         # Skip checking for undeclared identifiers
         return
 
@@ -2036,7 +2036,7 @@ class SemanticAnalyzer:
     #-----------------------------------------------------------------
     def _check_unused_local_variables(self):
         # Skip global scope
-        #WHY DO YOU FUCKING NEED THIS?
+        #WHY DO YOU   NEED THIS?
         # for table in self.symbol_tables[1:]:
         #     unused = table.get_unused()
         #     for name in unused:
@@ -2233,7 +2233,7 @@ class SemanticAnalyzer:
                         ))
                         return None  # testing
                     if node.children[1].children:
-                        #fucking function call
+                        # function call
                         if node.children[1].children[0].value == '(':
                             if first_child.value == "len":
                                 argument_node = node.children[1].children[1]
@@ -2276,7 +2276,7 @@ class SemanticAnalyzer:
                                 # needs to process parameters
                                 parameter_node = symbol.parameters
                                 while parameter_node.children and argument_node.children:
-                                    # process the fucking parameter
+                                    # process the   parameter
                                     if parameter_node.children[0].value == ',':
                                         data_type = parameter_node.children[1].children[0].value
                                         data_name = parameter_node.children[2].value
@@ -2285,7 +2285,7 @@ class SemanticAnalyzer:
                                         data_type = parameter_node.children[0].children[0].value
                                         data_name = parameter_node.children[1].value
                                         parameter_node = parameter_node.children[2]
-                                    # assign the fucking argument to the fucking parameter
+                                    # assign the   argument to the   parameter
 
                                     if argument_node.children[0].value == ',':
                                         data_val = self._evaluate_expression(argument_node.children[1])
@@ -2312,7 +2312,7 @@ class SemanticAnalyzer:
                                     ))
 
                                 return_node = symbol.value[2]
-                                #did it this way so that i don't need to add the spit on the visit_statement, fuck that
+                                #did it this way so that i don't need to add the spit on the visit_statement,   that
                                 self.generic_visit(symbol.value[0])
                                 self.generic_visit(symbol.value[1])
 
@@ -2323,7 +2323,7 @@ class SemanticAnalyzer:
                                 self.symbol_tables.pop()
 
                                 return return_val
-                        #this is the fucking array call
+                        #this is the   array call
                         elif node.children[1].children[0].value == '[':
                             if first_child.value == "len":
                                 line_num = getattr(node, 'line_number', None)
@@ -2335,7 +2335,7 @@ class SemanticAnalyzer:
                                 ))
                                 return
                             print("a"*100)
-                            #it's a fucking array <3 fuck this shi
+                            #it's a   array <3   this shi
                             index_value = int(self._evaluate_expression(node.children[1].children[1]))
                             symbol = self.lookup_symbol(first_child.value)
                             listed_value = list(symbol.get_value())
