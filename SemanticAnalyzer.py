@@ -1501,6 +1501,15 @@ class SemanticAnalyzer:
                     line=line_num
                 ))
                 return None
+            if symbol.type == 'pinch':
+                if val < -999999999 or val > 999999999:
+                    line_num = getattr(node, 'line_number', None)
+                    self.errors.append(SemanticError(
+                        "INVALID_VALUE",
+                        f"[pinch] can only hold values from [-999999999 to 999999999]",
+                        line=line_num
+                    ))
+                    return None
             symbol.value = val
             self.output_buffer.append("input: " + str(val).replace("-","~") + "")
 
