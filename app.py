@@ -8,8 +8,8 @@ import time
 
 app = Flask(__name__)
 
-original_stdout = sys.stdout
-sys.stdout = open(os.devnull, 'w')
+# original_stdout = sys.stdout
+# sys.stdout = open(os.devnull, 'w')
 
 def normalize_newlines(text):
     """Normalize newline characters for cross-platform compatibility."""
@@ -52,7 +52,7 @@ def index():
         try:
             # Tokenize user inputted code using Lexical Analyzer
             tokens, errors = LexicalAnalyzer().tokenize(program_code)
-            lexeme_token_list = [(token[0], token[1]) for token in tokens]              # token[0] refers to lexeme, token[1] refers to token type
+            lexeme_token_list = [(token[0], token[1], token[2]) for token in tokens]              # token[0] refers to lexeme, token[1] refers to token type
             if errors:
                 lexical_errors = "\n\n".join(errors)                                      # Join all the error messages into a single string
             else:

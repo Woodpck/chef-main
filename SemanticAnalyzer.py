@@ -1792,7 +1792,7 @@ class SemanticAnalyzer:
             _current_iteration_count += 1
 
         if self.MAX_LOOP_ITERATION <= _current_iteration_count:
-            line_num = getattr(node, 'line_number', None) + 1
+            line_num = getattr(node, 'line_number', None)
             self.errors.append(SemanticError(
                 code="INFINITE_LOOP_RISK",
                 message=f"The loop exceeded the set limit of iteration counts[{self.MAX_LOOP_ITERATION}]",
@@ -1829,7 +1829,7 @@ class SemanticAnalyzer:
             _current_iteration_count += 1
 
         if self.MAX_LOOP_ITERATION <= _current_iteration_count:
-            line_num = getattr(node, 'line_number', None) + 1
+            line_num = getattr(node, 'line_number', None)
             self.errors.append(SemanticError(
                 code="INFINITE_LOOP_RISK",
                 message=f"The loop exceeded the set limit of iteration counts[{self.MAX_LOOP_ITERATION}]",
@@ -1921,7 +1921,7 @@ class SemanticAnalyzer:
             _current_iteration_count += 1 #for infinite loop checking
 
         if self.MAX_LOOP_ITERATION <= _current_iteration_count:
-            line_num = getattr(node, 'line_number', None) + 1
+            line_num = getattr(node, 'line_number', None)
             self.errors.append(SemanticError(
                 code="INFINITE_LOOP_RISK",
                 message=f"The loop exceeded the set limit of iteration counts[{self.MAX_LOOP_ITERATION}]",

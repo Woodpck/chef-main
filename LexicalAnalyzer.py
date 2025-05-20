@@ -111,7 +111,7 @@ class Error:
     
     def as_string(self):
         '''This formats the error message like: `Lexical Error: Invalid character '@' at line X, column Y`'''
-        result = f'{self.error_name}: {self.details} at line {self.pos_start.ln + 1}, column {self.pos_start.col + 1}\n'
+        result = f'{self.error_name}: {self.details} at line {self.pos_start.ln}, column {self.pos_start.col + 1}\n'
         result += f'    {self.get_error_line()}\n'
         result += f'    {"~" * (self.pos_start.col)}^'          # Error pointer
         
@@ -177,7 +177,7 @@ class LexicalAnalyzer:
         
     def initialize_lexer(self, code):
         self.code = code + EOF                      # Append EOF to signal end of file
-        self.pos = Position(-1, 0, -1, code)        # Position starts at index 0
+        self.pos = Position(-1, 1, -1, code)        # Position starts at index 0
         self.read_next_character()                  # Set the first character
 
     def read_next_character(self):

@@ -436,6 +436,9 @@ class LL1Parser:
                         lexeme = token[0]
                         token_type = token[1]
                         line_number = token[2]
+                        print("ax"*50)
+                        print(str(token[0]) + str(token[2]))
+
                     else:
                         lexeme = token[0] if len(token) > 0 else ""
                         token_type = token[1] if len(token) > 1 else str(lexeme)
