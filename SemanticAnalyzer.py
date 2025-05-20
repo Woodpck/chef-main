@@ -1035,7 +1035,7 @@ class SemanticAnalyzer:
                                     # self.current_scope.add(var_name, symbol)
                                     line_num = getattr(node, 'line_number', None)
                                     self.errors.append(SemanticError(
-                                        code="UNDEFINED_IDENTIFIER",
+                                        code="UNDECLARED_IDENTIFIER",
                                         message=f"Identifier [{first_child.value}] does not exist!",
                                         line=line_num,
                                         identifier=first_child.value
@@ -1473,6 +1473,14 @@ class SemanticAnalyzer:
             #val = input("ask for input: ")
             #raise Exception("Needs input for identifier")
             symbol = self.lookup_symbol(arg_node.value)
+            if not symbol:
+                line_num = getattr(node, 'line_number', None)
+                self.errors.append(SemanticError(
+                    "UNDECLARED_VARIABLE",
+                    f"Identifier [{arg_node.value}] does not exist!",
+                    line=line_num
+                ))
+                return None
             def validate_input(val):
                 # Check if the value is None (cancelled)
                 if val is None:
