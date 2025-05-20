@@ -650,9 +650,9 @@ class LL1Parser:
         error_message = f"[SYNTAX_ERROR] at line {line_number}: "
         
         if expected_tokens:
-            if len(expected_tokens) <= 3:
-                expected_str = " or ".join(f"'{e}'" for e in sorted(expected_tokens))
-                error_message += f"Expected {expected_str}, but found '{token_lexeme}' while parsing {current_context}"
+            if expected_tokens:
+                expected_str = ", ".join(f"'{e}'" for e in sorted(expected_tokens))
+                error_message += f"Expected [{expected_str}], but found '{token_lexeme}' while parsing {current_context}"
             else:
                 error_message += f"Unexpected '{token_lexeme}' while parsing {current_context}"
         else:
