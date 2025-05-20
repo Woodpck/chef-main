@@ -8,8 +8,8 @@ import time
 
 app = Flask(__name__)
 
-# original_stdout = sys.stdout
-# sys.stdout = open(os.devnull, 'w')
+original_stdout = sys.stdout
+sys.stdout = open(os.devnull, 'w')
 
 def normalize_newlines(text):
     """Normalize newline characters for cross-platform compatibility."""
