@@ -127,6 +127,7 @@ class SemanticAnalyzer:
             "recipe": ["recipe"],         # Arrays
             "bool": ["bool"]     # Booleans can accept integers (0/1)
         }
+        self.MAX_LOOP_ITERATION = 50000 #change this value if you want to exceed that interation count
 
     def analyze(self, parse_tree, has_syntax_errors=False):
         if has_syntax_errors:
@@ -1777,6 +1778,7 @@ class SemanticAnalyzer:
         """
         """NEW, uses python while loop"""
 
+        _current_iteration_count = 1
         statement_node = node.children[2]
         self.generic_visit(statement_node)
 
@@ -1784,9 +1786,19 @@ class SemanticAnalyzer:
         eval_result = self._evaluate_condition(condition_node)
         print(f"Do-While Condition Evaluation := " + str(eval_result))
 
-        while eval_result:
+        while eval_result and self.MAX_LOOP_ITERATION > _current_iteration_count:
             self.generic_visit(statement_node)
             eval_result = self._evaluate_condition(condition_node)
+            _current_iteration_count += 1
+
+        if self.MAX_LOOP_ITERATION <= _current_iteration_count:
+            line_num = getattr(node, 'line_number', None) + 1
+            self.errors.append(SemanticError(
+                code="INFINITE_LOOP_RISK",
+                message=f"The loop exceeded the set limit of iteration counts[{self.MAX_LOOP_ITERATION}]",
+                line=line_num
+            ))
+            return
 
         """OLD, uses recursion"""
         # statement_node = node.children[2]
@@ -1808,11 +1820,22 @@ class SemanticAnalyzer:
         """NEW, just python while loop"""
         condition_node = node.children[2]
         eval_result = self._evaluate_condition(condition_node)
+        _current_iteration_count = 0
         print(f"While Condition Evaluation := " + str(eval_result))
-        while eval_result:
+        while eval_result and self.MAX_LOOP_ITERATION > _current_iteration_count:
             statement_node = node.children[5]
             self.generic_visit(statement_node)
             eval_result = self._evaluate_condition(condition_node)
+            _current_iteration_count += 1
+
+        if self.MAX_LOOP_ITERATION <= _current_iteration_count:
+            line_num = getattr(node, 'line_number', None) + 1
+            self.errors.append(SemanticError(
+                code="INFINITE_LOOP_RISK",
+                message=f"The loop exceeded the set limit of iteration counts[{self.MAX_LOOP_ITERATION}]",
+                line=line_num
+            ))
+            return
         """OLD, uses recursion"""
         # condition_node = node.children[2]
         # eval_result = self._evaluate_condition(condition_node)
@@ -1839,6 +1862,10 @@ class SemanticAnalyzer:
         _dtype = node.children[2]
         _dname = node.children[3].value
         _dvalue = node.children[5].children[0]
+
+        #for infinite loop checking
+        _current_iteration_count = 0
+
         if _dtype.children:
             # Create symbol and add it to the current scope for the first variable
             symbol = Symbol(_dname, _dtype.children[0].value)
@@ -1866,7 +1893,7 @@ class SemanticAnalyzer:
         eval_result = self._evaluate_condition(condition_expr)
         print(f"For Condition Evaluation := " + str(eval_result))
 
-        while eval_result:
+        while eval_result and self.MAX_LOOP_ITERATION > _current_iteration_count:
             #execute code block
             statement_node = node.children[12]
             self.generic_visit(statement_node)
@@ -1891,7 +1918,16 @@ class SemanticAnalyzer:
                 symbol.set_value((symbol.get_value() or 0) - 1)
 
             eval_result = self._evaluate_condition(condition_expr)
+            _current_iteration_count += 1 #for infinite loop checking
 
+        if self.MAX_LOOP_ITERATION <= _current_iteration_count:
+            line_num = getattr(node, 'line_number', None) + 1
+            self.errors.append(SemanticError(
+                code="INFINITE_LOOP_RISK",
+                message=f"The loop exceeded the set limit of iteration counts[{self.MAX_LOOP_ITERATION}]",
+                line=line_num
+            ))
+            return
 
         """OLD, uses recursion"""
         # if not loop:
