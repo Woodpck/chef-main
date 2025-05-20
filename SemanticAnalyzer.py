@@ -2697,12 +2697,12 @@ class SemanticAnalyzer:
                     if first_child.value == "!":
                         # Handle "!(<condition>)"
                         print("Found ! (negation) node")
-                        inner_condition = node.children[2]  # because structure: ! ( <condition> )
-                        value = self._evaluate_condition(inner_condition)
+                        inner_condition = left_node.children[2]  # because structure: ! ( <condition> )
+                        value = not self._evaluate_condition(inner_condition)
                     elif first_child.value == "!!":
                         # Handle "!!(<condition>)"
                         print("Found !! (double-negation) node")
-                        inner_condition = node.children[2]  # because structure: !! ( <condition> )
+                        inner_condition = left_node.children[2]  # because structure: !! ( <condition> )
                         value = self._evaluate_condition(inner_condition)
                     elif first_child.value == "yum":
                         print(f"Found: {node.value} => processing")
