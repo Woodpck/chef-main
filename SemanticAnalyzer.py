@@ -1047,7 +1047,7 @@ class SemanticAnalyzer:
 
 
                                 #checking match types
-                                if ((symbol.type == 'pasta' and not isinstance(value, str)) or ((symbol.type == 'pinch' or symbol.type == 'skim') and isinstance(value, str))) or (symbol.type == 'bool' and value not in ['yum', 'bleh']):
+                                if ((symbol.type == 'pasta' and not isinstance(value, str)) or ((symbol.type == 'pinch' or symbol.type == 'skim') and isinstance(value, str))) or (symbol.type == 'bool' and value not in ['yum', 'bleh', 1, 0]):
                                     self.errors.append(SemanticError(
                                         code="TYPE_MISMATCH",
                                         message=f"Type mismatch in using operator[{raw_op}] to assign value to id[{symbol.type}] with value[{value}]",
@@ -2250,26 +2250,30 @@ class SemanticAnalyzer:
 
                 if hasattr(first_child, 'node_type') and first_child.node_type == "id":
                     # Look up the variable
-                    if not self.lookup_symbol(first_child.value) and not first_child.value == "len":
-                        line_num = getattr(node, 'line_number', None)
-                        self.errors.append(SemanticError(
-                            code="UNDEFINED_IDENTIFIER",
-                            message=f"Identifier [{first_child.value}] does not exist!",
-                            line=line_num,
-                            identifier=first_child.value
-                        ))
-                        return None #testing
-                    if self.lookup_symbol(first_child.value).value is None:
-                        line_num = getattr(node, 'line_number', None)
-                        self.errors.append(SemanticError(
-                            code="NONE_VALUE",
-                            message=f"Identifier [{first_child.value}] have a None value!",
-                            line=line_num,
-                            identifier=first_child.value
-                        ))
-                        return None  # testing
+                    if first_child.value != "len":
+                        if not self.lookup_symbol(first_child.value):
+                            line_num = getattr(node, 'line_number', None)
+                            self.errors.append(SemanticError(
+                                code="UNDEFINED_IDENTIFIER",
+                                message=f"Identifier [{first_child.value}] does not exist!",
+                                line=line_num,
+                                identifier=first_child.value
+                            ))
+                            return None #testing
+                        if self.lookup_symbol(first_child.value).value is None:
+                            line_num = getattr(node, 'line_number', None)
+                            self.errors.append(SemanticError(
+                                code="NONE_VALUE",
+                                message=f"Identifier [{first_child.value}] have a None value!",
+                                line=line_num,
+                                identifier=first_child.value
+                            ))
+
+                            return None  # testing
+
                     if node.children[1].children:
                         # function call
+
                         if node.children[1].children[0].value == '(':
                             if first_child.value == "len":
                                 argument_node = node.children[1].children[1]
@@ -2416,6 +2420,7 @@ class SemanticAnalyzer:
                         else:
                             print(f"Variable not found: {var_name}")
                             return None
+
                 else:
                     # For other types, evaluate the child
                     return self._evaluate_expression(first_child)
