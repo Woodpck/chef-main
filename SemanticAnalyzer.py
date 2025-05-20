@@ -1030,9 +1030,17 @@ class SemanticAnalyzer:
                                 symbol = self.current_scope.lookup(var_name)
                                 if not symbol:
                                     # If symbol doesn't exist, create it as a pinch type
-                                    print(f"Creating new symbol for {var_name}")
-                                    symbol = Symbol(var_name, "pinch")
-                                    self.current_scope.add(var_name, symbol)
+                                    # print(f"Creating new symbol for {var_name}")
+                                    # symbol = Symbol(var_name, "pinch")
+                                    # self.current_scope.add(var_name, symbol)
+                                    line_num = getattr(node, 'line_number', None)
+                                    self.errors.append(SemanticError(
+                                        code="UNDEFINED_IDENTIFIER",
+                                        message=f"Identifier [{first_child.value}] does not exist!",
+                                        line=line_num,
+                                        identifier=first_child.value
+                                    ))
+                                    return None  # testing
 
                                 print(f"\nFound symbol: {symbol}")
                                 print(f"Current symbol value: {symbol.get_value()}")
