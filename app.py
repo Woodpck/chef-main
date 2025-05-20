@@ -87,14 +87,14 @@ def index():
                 # Should also return output_text
                 semantic_errors_exceptions = semantic_analyzer.analyze(syntax_analyzer.parse_tree)        
                 has_semantic_errors = [str(error) for error in semantic_errors_exceptions]
-                semantic_errors = "\n".join(has_semantic_errors)
+                semantic_errors = has_semantic_errors[0]
 
                 if not has_semantic_errors:
                     has_semantic_passed = True
             except Exception as e:
                 if semantic_analyzer.errors:
                     error_semantic_text = [str(error) for error in semantic_analyzer.errors]
-                    semantic_errors = "\n".join(error_semantic_text)
+                    semantic_errors = error_semantic_text[0]
                 else:
                     semantic_errors = f"An error occurred during semantic analysis: {e}"
 
