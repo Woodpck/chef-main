@@ -1013,7 +1013,7 @@ class LexicalAnalyzer:
                 state = 0
             elif state == 147:
                 if      self.check_delimiter(OPARAN_DELIM):     state = 148         # In docs, this is delim7
-                elif    self.match_char_and_advance('!'):       state = 149
+                # elif    self.match_char_and_advance('!'):       state = 149
                 elif    self.match_char_and_advance('='):       state = 151
                 else:
                     '''Captures example: !:(a)'''                                           
@@ -1025,11 +1025,11 @@ class LexicalAnalyzer:
                 state = 0
             elif state == 149:
                 if      self.check_delimiter(DELIM_3):          state = 150
-            #     else:
-            #         '''Captures example: !!:(a)'''                                           
-            #         invalid_character = self.current_character
-            #         self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
-            #         state = 0
+                # else:
+                #     '''Captures example: !!:(a)'''                                           
+                #     invalid_character = self.current_character
+                #     self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+                #     state = 0
             # elif state == 150:
             #     self.emit_token(tokens, TT_LOGICAL_NOT, '!!')
             #     state = 0
