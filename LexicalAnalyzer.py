@@ -24,11 +24,11 @@ ID_DELIM = {' ', ';', ',', '.', '(', ')', '{', '[', ']', '='} | OP_DELIM
 DELIM_1 = {' ', '"', '(', '~'} | ALPHA_NUM
 DELIM_3 = {' ', '(', '~'} | ALPHA_NUM
 DELIM_4 = {';', ')'} | ALPHA_NUM
-DELIM_5 = {' ', '('} | ALPHA_NUM
+DELIM_5 = {' ', '!', '('} | ALPHA_NUM
 DELIM_6 = {'"', '~', '\'', ' '} | ALPHA_NUM
 DELIM_8 = {' ', '~', '"', '\'', '('} | ALPHA_NUM
-DELIM_12 = {')', '\'', '"', ' ', '('} | ALPHA_NUM
-DELIM_13 = {';', '{', ')', '<', '>', '=', '?', '&', '+', '-', '/', '*', '%', ' '}
+DELIM_12 = {')', '!', '\'', '"', ' ', '('} | ALPHA_NUM
+DELIM_13 = {';', '{', ')', '<', '>', '=', '?', '&', '+', '-', '/', '*', '%', ' ', '!'}
 DELIM_14 = {']', ' '} | ALPHA_NUM
 DELIM_15 = {'=', ';', ' ', '\n', '[',"("}
 DELIM_16 = {'\'', '"', '~', ' ', '\n', '{'} | ALPHA_NUM
@@ -66,6 +66,7 @@ TT_MINUS = '-'
 TT_MINUS_EQUAL = '-='
 TT_DECREMENT = '--'
 TT_COMMA = ','
+TT_NEGATE_OP = '!'
 TT_LOGICAL_NOT = '!!'
 TT_NOT_EQUAL = '!='
 TT_LOGICAL_OR = '??'
@@ -1019,9 +1020,9 @@ class LexicalAnalyzer:
                     invalid_character = self.current_character
                     self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-            # elif state == 148:
-            #     self.emit_token(tokens, TT_NEGATE_OP, '!')
-            #     state = 0
+            elif state == 148:
+                self.emit_token(tokens, TT_NEGATE_OP, '!')
+                state = 0
             elif state == 149:
                 if      self.check_delimiter(DELIM_3):          state = 150
                 else:
