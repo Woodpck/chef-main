@@ -285,7 +285,7 @@ class LexicalAnalyzer:
                 # reserved symbols
                 elif    self.match_char_and_advance('-'):       state = 139
                 elif    self.match_char_and_advance(','):       state = 145
-                # elif    self.match_char_and_advance('!'):       state = 147
+                elif    self.match_char_and_advance('!'):       state = 147
                 elif    self.match_char_and_advance('?'):       state = 153
                 elif    self.match_char_and_advance('('):       state = 156
                 elif    self.match_char_and_advance(')'):       state = 158
@@ -1012,7 +1012,7 @@ class LexicalAnalyzer:
                 state = 0
             elif state == 147:
                 if      self.check_delimiter(OPARAN_DELIM):     state = 148         # In docs, this is delim7
-                # elif    self.match_char_and_advance('!'):       state = 149
+                elif    self.match_char_and_advance('!'):       state = 149
                 elif    self.match_char_and_advance('='):       state = 151
                 else:
                     '''Captures example: !:(a)'''                                           
