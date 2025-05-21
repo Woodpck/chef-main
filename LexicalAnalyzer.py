@@ -128,7 +128,7 @@ class Error:
     def get_error_line(self):
         '''This method returns the line of code that caused the error'''
         lines = self.pos_start.ftxt.split('\n')
-        return lines[self.pos_start.ln] if self.pos_start.ln < len(lines) else ""
+        return lines[self.pos_start.ln - 1] if self.pos_start.ln < len(lines) else ""
     
         # print(f'[Get_error-line]: lines variable contains: {lines}')
         # if self.pos_start.ln < len(lines):
