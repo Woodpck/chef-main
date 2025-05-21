@@ -652,7 +652,7 @@ class LL1Parser:
         if expected_tokens:
             if expected_tokens:
                 expected_str = ", ".join(f"'{e}'" for e in sorted(expected_tokens))
-                error_message += f"Expected [{expected_str}], but found '{token_lexeme}' while parsing {current_context}"
+                error_message += f"Unexpected '{token_lexeme}' Expected [{expected_str}]"
             else:
                 error_message += f"Unexpected '{token_lexeme}' while parsing {current_context}"
         else:

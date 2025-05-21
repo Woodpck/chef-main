@@ -67,7 +67,7 @@ TT_MINUS_EQUAL = '-='
 TT_DECREMENT = '--'
 TT_COMMA = ','
 TT_NEGATE_OP = '!'
-TT_LOGICAL_NOT = '!!'
+# TT_LOGICAL_NOT = '!!'
 TT_NOT_EQUAL = '!='
 TT_LOGICAL_OR = '??'
 TT_OPARAN = '('
@@ -1025,14 +1025,14 @@ class LexicalAnalyzer:
                 state = 0
             elif state == 149:
                 if      self.check_delimiter(DELIM_3):          state = 150
-                else:
-                    '''Captures example: !!:(a)'''                                           
-                    invalid_character = self.current_character
-                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
-                    state = 0
-            elif state == 150:
-                self.emit_token(tokens, TT_LOGICAL_NOT, '!!')
-                state = 0
+            #     else:
+            #         '''Captures example: !!:(a)'''                                           
+            #         invalid_character = self.current_character
+            #         self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
+            #         state = 0
+            # elif state == 150:
+            #     self.emit_token(tokens, TT_LOGICAL_NOT, '!!')
+            #     state = 0
             elif state == 151:
                 if      self.check_delimiter(DELIM_8):          state = 152
                 else:
