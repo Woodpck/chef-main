@@ -1,5 +1,5 @@
 # CONSTANTS
-EOF = '←'
+EOF = '/'
 
 ALPHA_BIG = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}
 ALPHA_SMALL = {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
@@ -24,11 +24,11 @@ ID_DELIM = {' ', ';', ',', '.', '(', ')', '{', '[', ']', '='} | OP_DELIM
 DELIM_1 = {' ', '"', '(', '~'} | ALPHA_NUM
 DELIM_3 = {' ', '(', '~'} | ALPHA_NUM
 DELIM_4 = {';', ')'} | ALPHA_NUM
-DELIM_5 = {' ', '!', '('} | ALPHA_NUM
+DELIM_5 = {' ', '('} | ALPHA_NUM
 DELIM_6 = {'"', '~', '\'', ' '} | ALPHA_NUM
 DELIM_8 = {' ', '~', '"', '\'', '('} | ALPHA_NUM
-DELIM_12 = {')', '!', '\'', '"', ' ', '('} | ALPHA_NUM
-DELIM_13 = {';', '{', ')', '<', '>', '=', '?', '&', '+', '-', '/', '*', '%', ' ', '!'}
+DELIM_12 = {')', '\'', '"', ' ', '('} | ALPHA_NUM
+DELIM_13 = {';', '{', ')', '<', '>', '=', '?', '&', '+', '-', '/', '*', '%', ' '}
 DELIM_14 = {']', ' '} | ALPHA_NUM
 DELIM_15 = {'=', ';', ' ', '\n', '[',"("}
 DELIM_16 = {'\'', '"', '~', ' ', '\n', '{'} | ALPHA_NUM
@@ -66,7 +66,6 @@ TT_MINUS = '-'
 TT_MINUS_EQUAL = '-='
 TT_DECREMENT = '--'
 TT_COMMA = ','
-TT_NEGATE_OP = '!'
 TT_LOGICAL_NOT = '!!'
 TT_NOT_EQUAL = '!='
 TT_LOGICAL_OR = '??'
@@ -286,7 +285,7 @@ class LexicalAnalyzer:
                 # reserved symbols
                 elif    self.match_char_and_advance('-'):       state = 139
                 elif    self.match_char_and_advance(','):       state = 145
-                elif    self.match_char_and_advance('!'):       state = 147
+                # elif    self.match_char_and_advance('!'):       state = 147
                 elif    self.match_char_and_advance('?'):       state = 153
                 elif    self.match_char_and_advance('('):       state = 156
                 elif    self.match_char_and_advance(')'):       state = 158
@@ -1013,16 +1012,16 @@ class LexicalAnalyzer:
                 state = 0
             elif state == 147:
                 if      self.check_delimiter(OPARAN_DELIM):     state = 148         # In docs, this is delim7
-                elif    self.match_char_and_advance('!'):       state = 149
+                # elif    self.match_char_and_advance('!'):       state = 149
                 elif    self.match_char_and_advance('='):       state = 151
                 else:
                     '''Captures example: !:(a)'''                                           
                     invalid_character = self.current_character
-                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}', expected '!' or '('")
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
-            elif state == 148:
-                self.emit_token(tokens, TT_NEGATE_OP, '!')
-                state = 0
+            # elif state == 148:
+            #     self.emit_token(tokens, TT_NEGATE_OP, '!')
+            #     state = 0
             elif state == 149:
                 if      self.check_delimiter(DELIM_3):          state = 150
                 else:
@@ -1048,7 +1047,7 @@ class LexicalAnalyzer:
                 else:
                     '''Captures example: a ?: b'''                                           
                     invalid_character = self.current_character
-                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}', expected '?'")
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
             elif state == 154:
                 if      self.check_delimiter(DELIM_3):          state = 155
@@ -1192,7 +1191,7 @@ class LexicalAnalyzer:
                 else:                                           
                     '''Captures example: a &: b'''                                           
                     invalid_character = self.current_character
-                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}', expected '&'")
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
             elif state == 182:
                 if      self.check_delimiter(DELIM_3):          state = 183
@@ -1340,7 +1339,7 @@ class LexicalAnalyzer:
                 else:
                     '''Captures example: "Hello World"-'''
                     invalid_character = self.current_character
-                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid delimiter '{invalid_character}', expected ',' or ';'")
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid delimiter '{invalid_character}")
                     state = 0
             elif state == 208:
                 self.emit_token(tokens, TT_PASTA_LITERAL, f'"{pasta_literal}"')
@@ -1351,7 +1350,7 @@ class LexicalAnalyzer:
                 if      is_digit:                               state = 210
                 else:                                           
                     '''Captures example: ~ without number after'''
-                    self.display_lexical_error(negative_sign_pos, self.pos, errors, f"Expected digit after '~'")
+                    self.display_lexical_error(negative_sign_pos, self.pos, errors)
                     state = 0
             elif state == 210:
                 is_digit, number_literal = self.append_digit_and_advance(number_literal)
@@ -1443,13 +1442,13 @@ class LexicalAnalyzer:
             elif state == 229:
                 if number_literal.endswith('.'):
                     '''Captures example: 123. without number after'''
-                    self.display_lexical_error(decimal_pos, self.pos, errors, f"Expected digit after '.'")
+                    self.display_lexical_error(decimal_pos, self.pos, errors)
                     state = 0
                 elif self.check_delimiter(NUM_DELIM):        
                     state = 230
                 elif self.current_character == '.':
                     '''Captures example: 123..1 or 123.1.1'''
-                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Expected single '.' in skimliteral")
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors)
                     state = 0
                 elif not self.current_character.isdigit():
                     '''Captures example: 123.a'''
@@ -1491,7 +1490,7 @@ class LexicalAnalyzer:
                 else:                                           
                     '''Captures example: skim a = 3.5;g'''
                     invalid_character = self.current_character
-                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid delimiter '{invalid_character}', expected ' ', '\\t', or '\\n'")
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid delimiter '{invalid_character}'")
                     state = 0
             elif state == 236:
                 self.emit_token(tokens, TT_SEMI_COLON, ';')
@@ -1501,7 +1500,7 @@ class LexicalAnalyzer:
                 else:
                     '''Captures example: case 3:g'''                                           
                     invalid_character = self.current_character
-                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid delimiter '{invalid_character}', expected ' ', '\\t', or '\\n'")
+                    self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid delimiter '{invalid_character}'")
                     state = 0
             elif state == 238:
                 self.emit_token(tokens, TT_COLON, ':')
