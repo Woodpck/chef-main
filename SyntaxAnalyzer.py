@@ -472,7 +472,8 @@ class LL1Parser:
                 self.errors.append(f"[SYNTAX_ERROR] at line {illegal_token[2]}: Unexpected code after 'takeout'. All code must be within 'dinein' and 'takeout'.")
         
             # Add end marker only after checking for code after takeout
-            processed_tokens.append(('$', '$', -1))
+            last_line = processed_tokens[len(processed_tokens) - 1][2]
+            processed_tokens.append((' ', '$', last_line))
             
             # Debug: Print processed tokens after filtering comments
             # print("DEBUG: Received Tokens (after comment filtering):")
