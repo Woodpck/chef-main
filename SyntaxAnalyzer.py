@@ -92,8 +92,7 @@ cfg = {
     
     "<expression_operand>": [["<value>"],
                              ["(", "<expression>", ")"],
-                             ["!", "(", "<expression>", ")"],
-                             ["!!", "(", "<expression>", ")"]],
+                             ["!", "(", "<expression>", ")"]],
     
     "<expression_operator>": [["+"],
                             ["-"],
@@ -190,8 +189,7 @@ cfg = {
     "<primary>": [["<arithmetic_exp>"],
                   ["yum"],
                   ["bleh"],
-                  ["!", "(", "<condition>", ")"],
-                  ["!!", "(", "<condition>", ")"]],
+                  ["!", "(", "<condition>", ")"]],
 
 
     "<case_tail>": [["case", "<literals4>", ":", "<statement_block>", "chop", ";", "<case_tail>"],

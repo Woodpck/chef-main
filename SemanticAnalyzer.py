@@ -2642,18 +2642,17 @@ class SemanticAnalyzer:
         elif node.value == "<condition_operand>":
             print("Processing <condition_operand> node")
             if node.children:
-                # Handle parenthesized, ! (negate), !! (double negate)
+                # Handle parenthesized, ! (negate)
                 if len(node.children) >= 3 and node.children[0].value == "(":
                     expr_node = node.children[1]
                     return self._evaluate_condition(expr_node)
-                elif len(node.children) >= 4 and node.children[0].value in ["!", "!!"]:
+                elif len(node.children) >= 4 and node.children[0].value in ["!"]:
                     negate_type = node.children[0].value
                     expr_node = node.children[2]
                     result = self._evaluate_condition(expr_node)
                     if negate_type == "!":
                         return not result
-                    elif negate_type == "!!":
-                        return bool(result)
+                    
                 else:
                     return self._evaluate_condition(node.children[0])
 
@@ -2707,11 +2706,6 @@ class SemanticAnalyzer:
                         print("Found ! (negation) node")
                         inner_condition = left_node.children[2]  # because structure: ! ( <condition> )
                         value = not self._evaluate_condition(inner_condition)
-                    elif first_child.value == "!!":
-                        # Handle "!!(<condition>)"
-                        print("Found !! (double-negation) node")
-                        inner_condition = left_node.children[2]  # because structure: !! ( <condition> )
-                        value = self._evaluate_condition(inner_condition)
                     elif first_child.value == "yum":
                         print(f"Found: {node.value} => processing")
                         value = True
@@ -2742,11 +2736,6 @@ class SemanticAnalyzer:
                 # Handle "!(<condition>)"
                 print("Found ! (negation) node")
                 inner_condition = node.children[2]  # because structure: ! ( <condition> )
-                return self._evaluate_condition(inner_condition)
-            elif first_child.value == "!!":
-                # Handle "!!(<condition>)"
-                print("Found !! (double-negation) node")
-                inner_condition = node.children[2]  # because structure: !! ( <condition> )
                 return self._evaluate_condition(inner_condition)
             elif first_child.value == "yum":
                 print(f"Found: {node.value} => processing")
