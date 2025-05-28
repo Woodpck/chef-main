@@ -1896,6 +1896,14 @@ class SemanticAnalyzer:
                 symbol.set_value(_dvalue)
         else:
             symbol = self.lookup_symbol(_dname)
+            if not symbol:
+                line_num = getattr(node, 'line_number', None)
+                self.errors.append(SemanticError(
+                    code="UNDEFINED_VARIABLE",
+                    message=f"VARIABLE '{_dname}' is UNDEFINED!",
+                    line=line_num
+                ))
+                return None
             if _dvalue.node_type == "id":
                 _dvalue = self.lookup_symbol(_dvalue.value)
             else:
@@ -1926,7 +1934,7 @@ class SemanticAnalyzer:
                     message=f"VARIABLE '{var_name}' is UNDEFINED!",
                     line=line_num
                 ))
-                return
+                return None
             print(var_op)
             if var_op == '++':
                 symbol.set_value((symbol.get_value() or 0) + 1)
