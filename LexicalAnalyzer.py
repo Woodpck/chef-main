@@ -15,7 +15,7 @@ SPACE_DELIM = {'(',' '}
 SEMICOLON_DELIM = {';'}
 COLON_DELIM = {':'}
 NEWLINE_DELIM = {'\n'}
-OPARAN_DELIM = {'('}
+OPARAN_DELIM = {'(', ' '}
 PASTA_DELIM = {"\t",',', ';', ' ', ':', ')', '}', '+'}
 NUM_DELIM = {' ', '?', '+', '>', '-', ';', ')', '<', '*', '/', '=', '%', ']', ',','{','}', ':'}
 OP_DELIM = {'+', '-', '*', '/', '%', '**'}
