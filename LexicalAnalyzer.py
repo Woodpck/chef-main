@@ -234,6 +234,9 @@ class LexicalAnalyzer:
     def display_lexical_error(self, start_pos, end_pos, error_ref, error_message):
         self.read_next_character()
         error_ref.append(LexicalError(start_pos, end_pos, error_message))
+        
+    def display_lexical_error_delimiter(self, start_pos, end_pos, error_ref, error_message):
+        error_ref.append(LexicalError(start_pos, end_pos, error_message))
 
     def tokenize(self, code):
         tokens = []
@@ -1465,15 +1468,18 @@ class LexicalAnalyzer:
                 state = 0
             elif state == 231:
                 MAX_IDENTIFIER_LENGTH = 32
-                if (self.current_character in UNDER_ALPHA_NUM and 
-                    len(identifier) < MAX_IDENTIFIER_LENGTH):
+                if (self.current_character in UNDER_ALPHA_NUM and len(identifier) < MAX_IDENTIFIER_LENGTH):
                     identifier += self.current_character
                     self.read_next_character()
-                    state = 231                                                         # Stay in the same state to collect more characters
+                    state = 231
                 elif self.check_delimiter(ID_DELIM):
                     state = 232
                 elif self.current_character not in UNDER_ALPHA_NUM:
-                    '''Captures example: my_var!'''     
+                    print(self.current_character + " is not a valid character for identifiers")
+                    if len(identifier) > 0:
+                        # The display_lexical_error reads the next character
+                        self.display_lexical_error_delimiter(self.pos.copy(), self.pos, errors, f"Invalid delimiter for identifier '{identifier}'")
+                
                     invalid_character = self.current_character
                     self.display_lexical_error(self.pos.copy(), self.pos, errors, f"Invalid character '{invalid_character}'")
                     state = 0
