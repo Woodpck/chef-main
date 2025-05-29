@@ -2609,7 +2609,7 @@ class SemanticAnalyzer:
             line_num = getattr(tail_node, 'line_number', None)
             type_names = {
                 'int': 'pinch',
-                'float': 'skin',
+                'float': 'skim',
                 'str': 'pasta'
             }
             self.errors.append(SemanticError(
